@@ -434,6 +434,28 @@
       </div>
       <input type="hidden" id="equipValue">
     </div>
+
+    <!-- ── STATUT (combobox éditable) ── -->
+    <div class="field">
+      <label>Statut</label>
+      <div class="dropdown-wrap" id="statusWrap">
+        <input class="dropdown-input" id="statusDisplay" placeholder="Sélectionner ou saisir un statut…">
+        <span class="dropdown-arrow" id="statusArrow">▼</span>
+        <div class="dropdown-list" id="statusList">
+          <input class="dropdown-search" id="statusSearch" placeholder="🔍 Rechercher ou saisir…">
+          <div id="statusOptions"></div>
+        </div>
+      </div>
+      <input type="hidden" id="statusValue">
+    </div>
+
+    <!-- ── RÉFÉRENCE (texte libre) ── -->
+    <div class="field">
+      <label>Référence</label>
+      <input type="text" class="dropdown-input" id="referenceInput"
+        placeholder="Ex : REF-9874" style="cursor:text;">
+    </div>
+
   </div>
 
   <!-- CARD 3 : PHOTO & FICHIERS -->
@@ -494,6 +516,8 @@
       <span class="status-pill" id="st-area">Zone —</span>
       <span class="status-pill" id="st-building">Bâtiment —</span>
       <span class="status-pill" id="st-equip">Équipement —</span>
+      <span class="status-pill" id="st-status">Statut —</span>
+      <span class="status-pill" id="st-reference">Référence —</span>
       <span class="status-pill" id="st-photo">Photo —</span>
       <span class="status-pill" id="st-notes">Notes —</span>
     </div>
@@ -651,10 +675,17 @@ const EQUIPMENT = {
   ],
 };
 
+const STATUS_OPTIONS = [
+  'Out of service',
+  'Missing',
+  'Not listed',
+  'Missing tag',
+];
+
 /* ────────────────────────────────────────────────
    STATE
 ──────────────────────────────────────────────── */
-let state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'', attachedFileName:null, attachedFileType:null };
+let state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'', attachedFileName:null, attachedFileType:null, status:'', reference:'' };
 let lastPdfBlob = null;
 
 /* ────────────────────────────────────────────────
@@ -816,6 +847,29 @@ document.getElementById('equipDisplay').addEventListener('input', function() {
   updateStatus();
 });
 
+/* ── STATUT (combobox éditable) ── */
+const statusDD = makeDropdown({
+  displayId:'statusDisplay', listId:'statusList', searchId:'statusSearch',
+  optionsId:'statusOptions', arrowId:'statusArrow', valueId:'statusValue',
+  allowManual: true,
+  onSelect(val) { state.status = val; }
+});
+statusDD.setItems(STATUS_OPTIONS);
+
+// Permet de taper directement un statut personnalisé dans le champ affiché
+document.getElementById('statusDisplay').removeAttribute('readonly');
+document.getElementById('statusDisplay').addEventListener('input', function() {
+  state.status = this.value;
+  document.getElementById('statusValue').value = this.value;
+  updateStatus();
+});
+
+/* ── RÉFÉRENCE (texte libre) ── */
+document.getElementById('referenceInput').addEventListener('input', function() {
+  state.reference = this.value;
+  updateStatus();
+});
+
 /* ────────────────────────────────────────────────
    CAMERA
 ──────────────────────────────────────────────── */
@@ -927,11 +981,13 @@ document.getElementById('notesField').addEventListener('input', function() {
 ──────────────────────────────────────────────── */
 function updateStatus() {
   const pills = {
-    'st-area':     { val: state.area,     label: 'Zone' },
-    'st-building': { val: state.building, label: 'Bâtiment' },
-    'st-equip':    { val: state.equipment,label: 'Équipement' },
-    'st-photo':    { val: state.photoDataURL || state.attachedFileName, label: 'Photo/Fichier' },
-    'st-notes':    { val: state.notes,    label: 'Notes' },
+    'st-area':      { val: state.area,      label: 'Zone' },
+    'st-building':  { val: state.building,  label: 'Bâtiment' },
+    'st-equip':     { val: state.equipment, label: 'Équipement' },
+    'st-status':    { val: state.status,    label: 'Statut' },
+    'st-reference': { val: state.reference, label: 'Référence' },
+    'st-photo':     { val: state.photoDataURL || state.attachedFileName, label: 'Photo/Fichier' },
+    'st-notes':     { val: state.notes,     label: 'Notes' },
   };
   let allFilled = true;
   for (const [id, {val, label}] of Object.entries(pills)) {
@@ -953,6 +1009,8 @@ function updateStatus() {
       <strong>Zone :</strong> ${state.area||'—'}<br>
       <strong>Bâtiment :</strong> ${state.building||'—'}<br>
       <strong>Équipement :</strong> ${state.equipment||'—'}<br>
+      <strong>Statut :</strong> ${state.status||'—'}<br>
+      <strong>Référence :</strong> ${state.reference||'—'}<br>
       <strong>Notes :</strong> ${state.notes ? state.notes.substring(0,80)+(state.notes.length>80?'…':'') : '—'}<br>
       <strong>Photo :</strong> ${state.photoDataURL ? '✓ Attachée' : '—'}
     `;
@@ -1110,6 +1168,8 @@ async function generatePDF() {
 
   section('Équipement', [
     ['Type', state.equipment || '—'],
+    ['Statut', state.status || '—'],
+    ['Référence', state.reference || '—'],
   ]);
 
   // ── Fichier PDF joint : afficher nom + icône
@@ -1221,15 +1281,25 @@ async function generatePDF() {
   doc.text('Rapport généré automatiquement', margin + 18, H - 4.5);
   doc.text('Page 1 / 1', W - margin, H - 4.5, { align:'right' });
 
-  // ── Filename
-  const buildName = (state.building || 'Batiment')
-    .replace(/\s*\(.*\)\s*/g,'')
-    .trim()
-    .replace(/\s+/g,'-')
-    .replace(/[^\w-]/g,'')
-    .substring(0, 30);
-  const dateCode = now.toISOString().slice(0, 10);
-  const filename = `Rapport_${dateCode}_${buildName}.pdf`;
+  // ── Filename : [Bâtiment] - [Équipement] - [Statut] - [Référence]
+  const cleanPart = (str, fallback) => {
+    const val = (str || fallback || '').toString()
+      .replace(/\s*\(.*\)\s*/g, '')   // retire "(28 équipements)" etc.
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, '')   // caractères interdits dans un nom de fichier
+      .replace(/\s+/g, '-')
+      .substring(0, 30);
+    return val || fallback;
+  };
+
+  const buildPart  = cleanPart(state.building, 'Batiment');
+  const equipPart  = cleanPart(state.equipment, 'Equipement');
+  const statusPart = cleanPart(state.status, '');
+  const refPart    = cleanPart(state.reference, '');
+
+  // Construction dynamique : on n'ajoute que les segments réellement remplis
+  const nameSegments = [buildPart, equipPart, statusPart, refPart].filter(Boolean);
+  const filename = nameSegments.join('-') + '.pdf';
 
   return { doc, filename };
 }
@@ -1288,13 +1358,17 @@ function fallbackDownload(blob, filename) {
    BTN RESET
 ──────────────────────────────────────────────── */
 document.getElementById('btnReset').addEventListener('click', () => {
-  state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'' };
+  state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'', attachedFileName:null, attachedFileType:null, status:'', reference:'' };
   areaDD.clear();
   buildingDD.clear();
   buildingDD.setItems([]);
   equipDD.clear();
   document.getElementById('equipDisplay').value = '';
   document.getElementById('equipValue').value = '';
+  statusDD.clear();
+  document.getElementById('statusDisplay').value = '';
+  document.getElementById('statusValue').value = '';
+  document.getElementById('referenceInput').value = '';
   document.getElementById('notesField').value = '';
   document.getElementById('photoPreview').style.display = 'none';
   document.getElementById('cameraInput').value = '';
@@ -1308,7 +1382,7 @@ document.getElementById('btnReset').addEventListener('click', () => {
 
 /* close dropdowns on outside click */
 document.addEventListener('click', e => {
-  ['areaWrap','buildingWrap','equipWrap'].forEach(id => {
+  ['areaWrap','buildingWrap','equipWrap','statusWrap'].forEach(id => {
     const wrap = document.getElementById(id);
     if (!wrap?.contains(e.target)) {
       wrap?.querySelector('.dropdown-list')?.classList.remove('open');
@@ -1319,3 +1393,4 @@ document.addEventListener('click', e => {
 </script>
 </body>
 </html>
+
