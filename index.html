@@ -2,1395 +2,3367 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PROLIFIC — Rapport d'Inspection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PROLIFIC — Gestion des Interventions</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#00C8F0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-  /* ── TOKENS ── */
-  :root {
-    --cyan:    #00C8F0;
-    --cyan-dk: #009FC2;
-    --navy:    #0D0E2B;
-    --white:   #FFFFFF;
-    --success: #16A34A;
-    --danger:  #DC2626;
-    --shadow:  0 2px 12px rgba(0,150,200,.10);
-    --radius:  12px;
-    --radius-sm: 8px;
-    --font:    'Segoe UI', system-ui, sans-serif;
-    --mono:    'Courier New', monospace;
-  }
+:root {
+  --cyan:    #00C8F0;
+  --cyan-dk: #009FC2;
+  --navy:    #0D0E2B;
+  --white:   #FFFFFF;
+  --gray-bg: #F0F4FA;
+  --gray-1:  #D8E4F0;
+  --gray-2:  #666888;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger:  #DC2626;
+  --purple:  #7B61FF;
+  --font:    'Segoe UI', system-ui, sans-serif;
+  --radius:  12px;
+  --radius-sm: 8px;
+}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    font-family: var(--font);
-    background: #FFFFFF;
-    color: #1A1D4E;
-    min-height: 100vh;
-    padding-bottom: 40px;
-  }
+body {
+  font-family: var(--font);
+  background: var(--gray-bg);
+  color: var(--navy);
+  min-height: 100vh;
+}
 
-  /* ── HEADER ── */
-  header {
-    background: #FFFFFF;
-    border-bottom: 2px solid #D8E4F0;
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 10px rgba(0,0,0,.07);
-    overflow: hidden;
-  }
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
 
-  .logo-wrap { display: flex; align-items: center; min-width: 0; }
+/* ══════════════════════════════════
+   SCREEN 1 : LOGIN
+══════════════════════════════════ */
+#screen-login {
+  background: #FFFFFF;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
 
-  .prolific-svg { display: flex; align-items: center; }
-  .prolific-svg svg { height: 36px; width: auto; }
+.login-logo {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.login-logo svg { height: 56px; }
+.login-logo p {
+  color: var(--gray-2);
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
 
-  .header-sub {
-    font-size: 10px; color: #666888; text-align: center;
-    letter-spacing: .5px; font-weight: 600; line-height: 1.4;
-    min-width: 0;
-  }
+.login-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+}
 
-  /* ── BREADCRUMB ── */
-  .breadcrumb {
-    background: #F0F4FA;
-    padding: 10px 24px;
-    font-size: 12px;
-    color: #666888;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    border-bottom: 1px solid #D8E4F0;
-  }
-  .breadcrumb span { color: var(--cyan); margin: 0 6px; }
+.login-card {
+  background: #FFFFFF;
+  border: 1.5px solid #D8E4F0;
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  cursor: pointer;
+  transition: all .2s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--navy);
+  box-shadow: 0 2px 12px rgba(0,100,160,.08);
+}
+.login-card:hover { border-color: var(--cyan); box-shadow: 0 4px 20px rgba(0,200,240,.2); }
 
-  /* ── MAIN ── */
-  main { max-width: 700px; margin: 28px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 20px; }
+.login-card-icon {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.login-card.admin .login-card-icon { background: #E0F9FF; }
+.login-card.tech .login-card-icon { background: #EDE9FF; }
 
-  /* ── CARDS ── */
-  .card {
-    background: #FFFFFF;
-    border: 1px solid #D8E4F0;
-    border-radius: var(--radius);
-    padding: 22px 20px;
-    box-shadow: 0 2px 12px rgba(0,100,160,.07);
-  }
+.login-card-text h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--navy); }
+.login-card-text p { font-size: 12px; color: var(--gray-2); }
 
-  .card-title {
-    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-    color: var(--cyan-dk); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
-  }
-  .card-title::before {
-    content: ''; display: block; width: 3px; height: 16px;
-    background: var(--cyan); border-radius: 2px;
-  }
+/* PIN Modal */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-overlay.active { display: flex; }
 
-  /* ── LABELS ── */
-  label { display: block; font-size: 12px; font-weight: 600; color: #555577; letter-spacing: .5px; margin-bottom: 6px; }
-  .field { margin-bottom: 16px; }
-  .field:last-child { margin-bottom: 0; }
+.modal-box {
+  background: white;
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  width: 100%; max-width: 340px;
+  text-align: center;
+}
+.modal-box h3 { font-size: 18px; margin-bottom: 8px; }
+.modal-box p { font-size: 13px; color: var(--gray-2); margin-bottom: 20px; }
 
-  /* ── DROPDOWN ── */
-  .dropdown-wrap { position: relative; }
+.pin-input {
+  width: 100%;
+  background: var(--gray-bg);
+  border: 2px solid var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 24px;
+  letter-spacing: 8px;
+  text-align: center;
+  outline: none;
+  margin-bottom: 16px;
+  font-family: var(--font);
+}
+.pin-input:focus { border-color: var(--cyan); }
 
-  .dropdown-input {
-    width: 100%;
-    background: #F5F8FF;
-    border: 1.5px solid #C8D8EC;
-    border-radius: var(--radius-sm);
-    padding: 11px 40px 11px 14px;
-    color: #1A1D4E;
-    font-size: 14px;
-    font-family: var(--font);
-    cursor: pointer;
-    transition: border-color .2s;
-    outline: none;
-  }
-  .dropdown-input:focus { border-color: var(--cyan); }
-  .dropdown-input::placeholder { color: #AABBCC; }
+.pin-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+  display: none;
+}
 
-  .dropdown-arrow {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    color: var(--cyan); pointer-events: none; font-size: 12px; transition: transform .2s;
-  }
-  .dropdown-arrow.open { transform: translateY(-50%) rotate(180deg); }
+.btn-pin {
+  width: 100%;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-dk));
+  color: var(--navy);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.btn-cancel {
+  width: 100%;
+  background: none;
+  border: 1.5px solid var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--gray-2);
+}
 
-  .dropdown-list {
-    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-    background: #FFFFFF;
-    border: 1.5px solid #C8D8EC;
-    border-radius: var(--radius-sm);
-    max-height: 260px; overflow-y: auto; z-index: 200; display: none;
-    box-shadow: 0 8px 32px rgba(0,100,160,.15);
-  }
-  .dropdown-list.open { display: block; }
+/* ══════════════════════════════════
+   HEADER COMMUN
+══════════════════════════════════ */
+.app-header {
+  background: white;
+  border-bottom: 2px solid var(--gray-1);
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+}
 
-  .dropdown-search {
-    width: 100%; background: #F5F8FF;
-    border: none; border-bottom: 1px solid #D8E4F0;
-    padding: 10px 14px; color: #1A1D4E; font-size: 13px; outline: none; font-family: var(--font);
-  }
-  .dropdown-search::placeholder { color: #AABBCC; }
+.header-logo { display: flex; align-items: center; }
+.header-logo svg { height: 34px; }
 
-  .dropdown-option {
-    padding: 10px 14px; font-size: 13px; cursor: pointer; color: #333355;
-    transition: background .15s; border-bottom: 1px solid #F0F4FA;
-  }
-  .dropdown-option:hover { background: #E8F6FB; color: var(--cyan-dk); }
-  .dropdown-option.group-header {
-    font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--cyan-dk); background: #EEF6FC; cursor: default; pointer-events: none;
-  }
-  .dropdown-option.manual-entry { color: var(--cyan-dk); font-style: italic; border-top: 1px solid #D8E4F0; }
-  .dropdown-option.selected { background: #D8F0FA; color: var(--cyan-dk); font-weight: 600; }
+.header-center {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--gray-2);
+  text-transform: uppercase;
+}
+.header-center span { display: block; color: var(--cyan-dk); font-size: 11px; }
 
-  /* ── TEXTAREA ── */
-  .notes-area {
-    width: 100%; background: #F5F8FF;
-    border: 1.5px solid #C8D8EC; border-radius: var(--radius-sm);
-    padding: 12px 14px; color: #1A1D4E; font-size: 14px; font-family: var(--font);
-    line-height: 1.6; resize: vertical; min-height: 130px; outline: none; transition: border-color .2s;
-  }
-  .notes-area:focus { border-color: var(--cyan); }
-  .notes-area::placeholder { color: #AABBCC; }
+.header-role {
+  display: flex; align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 100px;
+}
+.header-role.admin { background: #E0F9FF; color: var(--cyan-dk); }
+.header-role.tech { background: #EDE9FF; color: var(--purple); }
 
-  /* ── CAMERA ── */
-  .camera-section { display: flex; flex-direction: column; gap: 12px; }
+.btn-logout {
+  background: none; border: none; cursor: pointer;
+  color: var(--gray-2); font-size: 18px; padding: 4px;
+}
 
-  .btn-camera {
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    background: #F5F8FF;
-    border: 2px dashed #C8D8EC;
-    border-radius: var(--radius-sm); padding: 16px;
-    color: var(--cyan-dk); font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all .2s; width: 100%;
-  }
-  .btn-camera:hover { border-color: var(--cyan); background: #E8F6FB; }
-  .btn-camera svg { flex-shrink: 0; }
+/* ══════════════════════════════════
+   SCREEN 2 : ADMIN DASHBOARD
+══════════════════════════════════ */
+#screen-admin { background: var(--gray-bg); }
 
-  #cameraInput { display: none; }
+.admin-main { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 
-  .photo-preview { display: none; position: relative; border-radius: var(--radius-sm); overflow: hidden; border: 1.5px solid #C8D8EC; }
-  .photo-preview img { width: 100%; max-height: 250px; object-fit: cover; display: block; }
-  .photo-preview .remove-photo {
-    position: absolute; top: 8px; right: 8px;
-    background: rgba(220,38,38,.85); border: none; border-radius: 50%;
-    width: 30px; height: 30px; color: white; font-size: 16px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .photo-label {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,.5));
-    padding: 16px 12px 10px; font-size: 11px; color: #FFFFFF; font-family: var(--mono);
-  }
+/* Stats bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
 
-  /* ── BUTTONS ── */
-  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.stat-card {
+  background: white;
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  text-align: center;
+  border-top: 3px solid transparent;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.stat-card.pending { border-color: var(--warning); }
+.stat-card.diag { border-color: var(--cyan); }
+.stat-card.approved { border-color: var(--purple); }
+.stat-card.done { border-color: var(--success); }
+.stat-card.tocomplete { border-color: #0EA5E9; }
 
-  .btn {
-    flex: 1; min-width: 140px; padding: 14px 20px; border: none;
-    border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; font-family: var(--font);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    gap: 8px; transition: all .2s; letter-spacing: .5px;
-  }
+.stat-num { font-size: 22px; font-weight: 800; }
+.stat-label { font-size: 9px; color: var(--gray-2); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
 
-  .btn-pdf { background: linear-gradient(135deg, var(--cyan), var(--cyan-dk)); color: #0D0E2B; }
-  .btn-pdf:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,200,240,.35); }
+/* Tabs */
+.tabs {
+  display: flex;
+  background: white;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  gap: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  overflow-x: auto;
+}
+.tab-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .2s;
+}
+.tab-btn.active { background: var(--navy); color: white; }
 
-  .btn-share { background: linear-gradient(135deg, #7B61FF, #5A47CC); color: white; }
-  .btn-share:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(123,97,255,.35); }
+/* Incident cards */
+.incidents-list { display: flex; flex-direction: column; gap: 12px; }
 
-  .btn-reset { background: transparent; border: 1.5px solid #FFBBBB; color: var(--danger); }
-  .btn-reset:hover { background: #FFF0F0; border-color: var(--danger); }
+.incident-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  border-left: 4px solid transparent;
+}
+.incident-card.status-pending { border-color: var(--warning); }
+.incident-card.status-diagnostic { border-color: var(--cyan); }
+.incident-card.status-approved { border-color: var(--purple); }
+.incident-card.status-done { border-color: var(--success); }
+.incident-card.status-closed { border-color: var(--gray-2); }
 
-  /* ── TOAST ── */
-  .toast {
-    position: fixed; bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: #FFFFFF; border: 1px solid var(--cyan); color: #1A1D4E;
-    padding: 12px 24px; border-radius: 100px; font-size: 13px; font-weight: 600;
-    z-index: 999; transition: transform .3s ease;
-    box-shadow: 0 8px 32px rgba(0,100,160,.15); white-space: nowrap;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { border-color: var(--success); color: var(--success); }
-  .toast.error { border-color: var(--danger); color: var(--danger); }
+.incident-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
 
-  /* ── STATUS PILLS ── */
-  .status-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-  .status-pill {
-    font-size: 11px; padding: 4px 10px; border-radius: 100px;
-    background: #F0F4FA; border: 1px solid #D8E4F0; color: #888AAA;
-  }
-  .status-pill.filled { background: #F0FDF4; border-color: #86EFAC; color: var(--success); }
+.incident-id { font-size: 10px; color: var(--gray-2); font-weight: 600; letter-spacing: 1px; }
+.incident-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+}
+.badge-pending { background: #FEF3C7; color: var(--warning); }
+.badge-diagnostic { background: #E0F9FF; color: var(--cyan-dk); }
+.badge-approved { background: #EDE9FF; color: var(--purple); }
+.badge-done { background: #DCFCE7; color: var(--success); }
+.badge-closed { background: #F0F4FA; color: var(--gray-2); }
+.badge-tocomplete { background: #E0F2FE; color: #0284C7; }
 
-  /* ── SUMMARY ── */
-  .summary-preview {
-    display: none; background: #F0F9FF;
-    border: 1px solid #BAE6FD; border-radius: var(--radius-sm);
-    padding: 14px; margin-top: 16px; font-size: 13px; line-height: 1.7; color: #334466;
-  }
-  .summary-preview strong { color: var(--cyan-dk); }
+.incident-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.incident-sub { font-size: 12px; color: var(--gray-2); margin-bottom: 12px; }
 
-  /* ── API LOGO ── */
-  .api-logo { display: flex; align-items: center; flex-shrink: 0; }
-  .api-logo-inner {
-    display: flex; align-items: stretch; height: 40px;
-    border-radius: 5px; overflow: visible;
-    box-shadow: 0 1px 4px rgba(0,0,0,.12);
-  }
-  .api-logo-square {
-    background: #2C3454;
-    width: 40px; height: 40px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    border-radius: 5px 0 0 5px;
-  }
-  .api-logo-square svg { width: 26px; height: 26px; }
-  .api-logo-cream {
-    background: #F0EAD8;
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 10px;
-    font-family: Georgia, "Times New Roman", serif;
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: 3px;
-    color: #2C3454;
-    white-space: nowrap;
-    border-radius: 0 5px 5px 0;
-    min-width: 52px;
-  }
+.incident-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.meta-item {
+  font-size: 11px;
+  color: var(--gray-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.meta-item strong { color: var(--navy); }
 
-  /* ── LIEN JOINDRE FICHIER ── */
-  .attach-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-    font-size: 13px;
-    color: #009FC2;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
-    font-family: var(--font);
-    font-weight: 500;
-    transition: color .2s;
-  }
-  .attach-link:hover { color: #007A96; }
+/* Devis section */
+.devis-section {
+  background: var(--gray-bg);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.devis-title { font-size: 11px; font-weight: 700; color: var(--gray-2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.devis-items { display: flex; flex-direction: column; gap: 6px; }
+.devis-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.devis-item span { color: var(--gray-2); }
+.devis-item strong { color: var(--navy); }
+.devis-total {
+  border-top: 1px solid var(--gray-1);
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 14px;
+}
 
-  /* Badge fichier joint */
-  .file-badge {
-    display: none;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    background: #F5F8FF;
-    border: 1.5px solid #C8D8EC;
-    border-radius: 8px;
-    padding: 10px 14px;
-  }
-  .file-badge-icon {
-    width: 36px; height: 36px; flex-shrink: 0;
-    background: #DC2626;
-    border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 11px; font-weight: 700; letter-spacing: .5px;
-  }
-  .file-badge-icon.img-icon { background: #009FC2; }
-  .file-badge-name {
-    flex: 1; font-size: 13px; color: #334466;
-    font-weight: 500; word-break: break-all;
-  }
-  .file-badge-remove {
-    background: none; border: none; cursor: pointer;
-    color: #DC2626; font-size: 18px; padding: 0; line-height: 1;
-  }
+.incident-actions { display: flex; gap: 8px; }
 
-  /* SCROLLBAR */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #F0F4FA; }
-  ::-webkit-scrollbar-thumb { background: #C8D8EC; border-radius: 3px; }
+.btn-action {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all .2s;
+}
+.btn-approve { background: linear-gradient(135deg, var(--success), #15803D); color: white; }
+.btn-approve:hover { opacity: .88; }
+.btn-validate { background: linear-gradient(135deg, var(--cyan), var(--cyan-dk)); color: var(--navy); }
+.btn-detail { background: var(--gray-bg); color: var(--navy); border: 1px solid var(--gray-1); }
+.btn-whatsapp { background: #25D366; color: white; }
 
-  @media (max-width: 480px) {
-    header { padding: 10px 12px; gap: 8px; }
-    .prolific-svg svg { height: 30px; }
-    .header-sub { font-size: 9px; }
-    .api-logo-inner { height: 34px; }
-    .api-logo-square { width: 34px; height: 34px; }
-    .api-logo-square svg { width: 22px; height: 22px; }
-    .api-logo-cream { font-size: 15px; padding: 0 8px; letter-spacing: 2px; min-width: 44px; }
-    main { padding: 0 12px; margin-top: 20px; }
-    .card { padding: 18px 16px; }
-    .btn-row { flex-direction: column; }
-    .btn { min-width: unset; }
-  }
+/* Nouveau incident FAB */
+.fab {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-dk));
+  border: none;
+  border-radius: 50%;
+  color: var(--navy);
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,200,240,.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  transition: transform .2s;
+}
+.fab:hover { transform: scale(1.1); }
+
+/* ══════════════════════════════════
+   SCREEN 3 : TECH DASHBOARD
+══════════════════════════════════ */
+#screen-tech { background: var(--gray-bg); }
+
+.tech-main { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.tech-welcome {
+  background: linear-gradient(135deg, var(--navy), #1A1D4E);
+  border-radius: var(--radius);
+  padding: 20px;
+  color: white;
+}
+.tech-welcome h2 { font-size: 18px; margin-bottom: 4px; }
+.tech-welcome p { font-size: 12px; color: var(--gray-2); }
+.tech-welcome .task-count {
+  margin-top: 12px;
+  background: rgba(0,200,240,.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-2);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.tech-task-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  border-left: 4px solid var(--cyan);
+  cursor: pointer;
+  transition: all .2s;
+}
+.tech-task-card:hover { box-shadow: 0 4px 16px rgba(0,200,240,.15); }
+.tech-task-card.urgent { border-color: var(--danger); }
+.tech-task-card.approved { border-color: var(--success); }
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.task-phase {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: #E0F9FF;
+  color: var(--cyan-dk);
+}
+.task-phase.go { background: #DCFCE7; color: var(--success); }
+.task-phase.diag { background: #FEF3C7; color: var(--warning); }
+
+.task-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.task-sub { font-size: 12px; color: var(--gray-2); margin-bottom: 12px; }
+
+.task-progress {
+  display: flex;
+  gap: 4px;
+}
+.progress-step {
+  flex: 1;
+  height: 4px;
+  background: var(--gray-1);
+  border-radius: 2px;
+}
+.progress-step.done { background: var(--cyan); }
+.progress-step.active { background: var(--warning); }
+
+/* ══════════════════════════════════
+   SCREEN 4 : FORMULAIRE INTERVENTION
+══════════════════════════════════ */
+#screen-form { background: var(--gray-bg); }
+
+.form-main { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Phase indicator */
+.phase-indicator {
+  background: white;
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.phase-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.phase-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.phase-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--gray-1);
+  color: var(--gray-2);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.phase-dot.active { background: var(--cyan); color: var(--navy); }
+.phase-dot.done { background: var(--success); color: white; }
+
+.phase-line {
+  flex: 1;
+  height: 2px;
+  background: var(--gray-1);
+  margin-top: -14px;
+}
+.phase-line.done { background: var(--success); }
+
+.phase-label {
+  font-size: 9px;
+  color: var(--gray-2);
+  text-align: center;
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.phase-label.active { color: var(--cyan-dk); }
+
+/* Form cards */
+.form-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.form-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan-dk);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-card-title::before {
+  content: '';
+  display: block;
+  width: 3px; height: 16px;
+  background: var(--cyan);
+  border-radius: 2px;
+}
+
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-2);
+  margin-bottom: 6px;
+}
+
+.field input, .field select, .field textarea {
+  width: 100%;
+  background: var(--gray-bg);
+  border: 1.5px solid var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--navy);
+  outline: none;
+  transition: border-color .2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--cyan); }
+.field input::placeholder, .field textarea::placeholder { color: #AABBCC; }
+.field textarea { min-height: 100px; resize: vertical; }
+
+/* Devis builder */
+.devis-builder { display: flex; flex-direction: column; gap: 10px; }
+.devis-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 36px;
+  gap: 8px;
+  align-items: center;
+}
+.devis-row input {
+  width: 100%;
+  background: var(--gray-bg);
+  border: 1.5px solid var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+}
+.devis-row input:focus { border-color: var(--cyan); }
+.btn-remove-row {
+  width: 36px; height: 36px;
+  background: #FEE2E2;
+  border: none;
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-add-row {
+  background: none;
+  border: 1.5px dashed var(--cyan);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  color: var(--cyan-dk);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+}
+
+.devis-total-bar {
+  background: var(--navy);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  font-weight: 700;
+}
+.devis-total-bar span { font-size: 13px; opacity: .7; }
+.devis-total-bar strong { font-size: 18px; color: var(--cyan); }
+
+/* Camera */
+.btn-camera {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--gray-bg);
+  border: 2px dashed var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  color: var(--cyan-dk);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all .2s;
+}
+.btn-camera:hover { border-color: var(--cyan); }
+#cameraInputForm { display: none; }
+
+.photo-thumb {
+  display: none;
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1.5px solid var(--gray-1);
+  margin-top: 10px;
+}
+.photo-thumb img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+.photo-thumb .remove-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(220,38,38,.85);
+  border: none; border-radius: 50%;
+  width: 28px; height: 28px;
+  color: white; font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Submit button */
+.btn-submit {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-dk));
+  color: var(--navy);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: .5px;
+  transition: all .2s;
+}
+.btn-submit:hover { opacity: .88; transform: translateY(-1px); }
+.btn-submit.green { background: linear-gradient(135deg, var(--success), #15803D); color: white; }
+
+.btn-back {
+  background: none;
+  border: 1.5px solid var(--gray-1);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 14px;
+  color: var(--gray-2);
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: white;
+  border: 1px solid var(--cyan);
+  color: var(--navy);
+  padding: 12px 24px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999;
+  transition: transform .3s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15);
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--success); color: var(--success); }
+.toast.error { border-color: var(--danger); color: var(--danger); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--gray-2);
+}
+.empty-state div { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* ── API LOGO ── */
+.api-logo-inner {
+  display: flex; align-items: stretch; height: 34px;
+  border-radius: 4px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+.api-logo-sq {
+  background: #2C3454;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.api-logo-sq svg { width: 22px; height: 22px; }
+.api-logo-cream {
+  background: #F0EAD8;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 8px;
+  font-family: Georgia, serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: #2C3454;
+}
+
+@media (max-width: 360px) {
+  .stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── IMPORT PDF ── */
+.pdf-import-zone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 2px dashed var(--cyan);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  background: #F0FDFF;
+  cursor: pointer;
+  transition: all .2s;
+  text-align: left;
+}
+.pdf-import-zone:hover { background: #E0F9FF; border-color: var(--cyan-dk); }
+.pdf-import-zone .pdf-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pdf-import-zone .pdf-text p {
+  font-size: 13px;
+  color: var(--cyan-dk);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.pdf-import-zone .pdf-text small {
+  font-size: 11px;
+  color: var(--gray-2);
+}
+#pdfFileInput { display: none; }
+
+.pdf-extracted {
+  background: #F0FDF4;
+  border: 1.5px solid #86EFAC;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-top: 12px;
+}
+.pdf-extracted-title {
+  font-size: 11px; font-weight: 700; color: var(--success);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.pdf-field-preview {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 5px 0; border-bottom: 1px solid #D1FAE5;
+  gap: 8px;
+}
+.pdf-field-preview:last-child { border-bottom: none; }
+.pdf-field-preview span { color: var(--gray-2); font-size: 12px; flex-shrink: 0; }
+.pdf-field-preview strong { color: var(--navy); font-size: 12px; text-align: right; word-break: break-word; }
+
+.parsing-loader {
+  text-align: center; padding: 16px;
+  font-size: 13px; color: var(--cyan-dk);
+  display: none;
+  background: #F0FDFF;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+
+/* ── PRIORITÉ URGENTE ── */
+.urgent-banner {
+  background: linear-gradient(135deg, #DC2626, #B91C1C);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  animation: pulse-red 2s infinite;
+}
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .75; }
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  margin-left: 6px;
+}
+.priority-high { background: #FEE2E2; color: #DC2626; }
+.priority-medium { background: #FEF3C7; color: #D97706; }
+.priority-normal { background: #F0F4FA; color: var(--gray-2); }
+
+.btn-priority {
+  background: none;
+  border: 1.5px solid #FCA5A5;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-priority.active { background: var(--danger); color: white; border-color: var(--danger); }
+
+/* ── TOGGLE ASSIGNATION ── */
+.assign-toggle {
+  display: flex;
+  background: var(--gray-bg);
+  border: 1.5px solid var(--gray-1);
+  border-radius: 100px;
+  padding: 3px;
+  gap: 2px;
+  margin-top: 8px;
+}
+.assign-toggle-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: none;
+  color: var(--gray-2);
+  transition: all .2s;
+}
+.assign-toggle-btn.active {
+  background: var(--navy);
+  color: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header>
-  <!-- LOGO PROLIFIC -->
-  <div class="logo-wrap">
-    <div class="prolific-svg">
-      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" height="42">
+<!-- ══ SCREEN 1 : LOGIN ══ -->
+<div class="screen active" id="screen-login">
+  <div class="login-logo">
+    <!-- Logo PROLIFIC -->
+    <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" style="height:50px;width:auto">
+      <path d="M6 50 L6 8 L18 8 C26 8 33 13 33 22 C33 31 26 35 18 35 L14 35 L14 50 Z" fill="#00C8F0"/>
+      <path d="M14 14 L18 14 C22 14 25 17 25 22 C25 27 22 29 18 29 L14 29 Z" fill="#0D0E2B"/>
+      <path d="M6 44 C6 44 2 48 4 52 C6 56 10 54 12 50 L14 50 L14 44 Z" fill="#00C8F0"/>
+      <text x="40" y="42" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
+    </svg>
+
+    <!-- Séparateur -->
+    <div style="width:1px;height:20px;background:#D8E4F0;margin:8px auto;"></div>
+
+    <!-- Logo API -->
+    <div style="display:flex;justify-content:center;">
+      <div class="api-logo-inner">
+        <div class="api-logo-sq">
+          <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="14" width="16" height="14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <polygon points="5,14 15,5 25,14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <rect x="9" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="17" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="12" y="22" width="6" height="6" fill="none" stroke="#C8622A" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="api-logo-cream" style="font-size:18px;padding:0 12px;letter-spacing:4px;">API</div>
+      </div>
+    </div>
+
+    <p style="margin-top:16px;">Gestion des Interventions</p>
+  </div>
+
+  <div class="login-cards">
+    <div class="login-card admin" onclick="showPinModal()">
+      <div class="login-card-icon">👤</div>
+      <div class="login-card-text">
+        <h3>Administrateur</h3>
+        <p>Accès complet — Dashboard & Validation</p>
+      </div>
+    </div>
+    <div class="login-card" style="border-color:#D8E4F0;" onclick="loginTech('manager')">
+      <div class="login-card-icon" style="background:#FFF3E0;">👔</div>
+      <div class="login-card-text">
+        <h3>Manager</h3>
+        <p>Mes interventions & Formulaires</p>
+      </div>
+    </div>
+    <div class="login-card tech" onclick="loginTech('raz')">
+      <div class="login-card-icon">🔧</div>
+      <div class="login-card-text">
+        <h3>Technicien (RAZ)</h3>
+        <p>Mes interventions & Formulaires</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIN Modal -->
+<div class="modal-overlay" id="pinModal">
+  <div class="modal-box">
+    <h3>🔐 Accès Admin</h3>
+    <p>Saisissez votre code PIN</p>
+    <input type="password" class="pin-input" id="pinInput" maxlength="6" placeholder="••••••" inputmode="numeric">
+    <div class="pin-error" id="pinError">Code incorrect. Réessayez.</div>
+    <button class="btn-pin" onclick="checkPin()">Accéder</button>
+    <button class="btn-cancel" onclick="hidePinModal()">Annuler</button>
+  </div>
+</div>
+
+<!-- Manager PIN Modal -->
+<div class="modal-overlay" id="managerPinModal">
+  <div class="modal-box">
+    <h3>👔 Accès Manager</h3>
+    <p>Saisissez votre code PIN</p>
+    <input type="password" class="pin-input" id="managerPinInput" maxlength="6" placeholder="••••" inputmode="numeric">
+    <div class="pin-error" id="managerPinError">Code incorrect. Réessayez.</div>
+    <button class="btn-pin" onclick="checkManagerPin()">Accéder</button>
+    <button class="btn-cancel" onclick="document.getElementById('managerPinModal').classList.remove('active')">Annuler</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2 : ADMIN ══ -->
+<div class="screen" id="screen-admin">
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-logo">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" height="34">
         <path d="M6 50 L6 8 L18 8 C26 8 33 13 33 22 C33 31 26 35 18 35 L14 35 L14 50 Z" fill="#00C8F0"/>
         <path d="M14 14 L18 14 C22 14 25 17 25 22 C25 27 22 29 18 29 L14 29 Z" fill="#FFFFFF"/>
         <path d="M6 44 C6 44 2 48 4 52 C6 56 10 54 12 50 L14 50 L14 44 Z" fill="#00C8F0"/>
-        <text x="40" y="42" font-family="Arial Black, sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
+        <text x="40" y="42" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
       </svg>
     </div>
-  </div>
-
-  <!-- CENTRE : AREAS & SCHEDULE -->
-  <div class="header-sub">
-    AREAS &amp; SCHEDULE<br>
-    <span style="color:#009FC2">Rapport d'Inspection</span>
-  </div>
-
-  <!-- LOGO API — HTML pur, jamais coupé -->
-  <div class="api-logo">
-    <div class="api-logo-inner">
-      <!-- Carré marine + bâtiment -->
-      <div class="api-logo-square">
-        <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
-          <!-- Corps bâtiment -->
-          <rect x="7" y="14" width="16" height="14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
-          <!-- Toit -->
-          <polygon points="5,14 15,5 25,14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
-          <!-- Fenêtres -->
-          <rect x="9" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
-          <rect x="17" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
-          <!-- Porte -->
-          <rect x="12" y="22" width="6" height="6" fill="none" stroke="#C8622A" stroke-width="1"/>
-        </svg>
-      </div>
-      <!-- Zone crème + texte API -->
-      <div class="api-logo-cream">API</div>
+    <div class="header-center">
+      Interventions<span>Dashboard Admin</span>
     </div>
-  </div>
-</header>
-
-<!-- BREADCRUMB -->
-<div class="breadcrumb">HOME <span>▶</span> AREAS &amp; SCHEDULE <span>▶</span> NOUVEAU RAPPORT</div>
-
-<main>
-
-  <!-- CARD 1 : ZONE & BÂTIMENT -->
-  <div class="card">
-    <div class="card-title">Zone &amp; Bâtiment</div>
-
-    <!-- AREA DROPDOWN -->
-    <div class="field">
-      <label>Zone (Area)</label>
-      <div class="dropdown-wrap" id="areaWrap">
-        <input class="dropdown-input" id="areaDisplay" placeholder="Sélectionner une zone…" readonly>
-        <span class="dropdown-arrow" id="areaArrow">▼</span>
-        <div class="dropdown-list" id="areaList">
-          <input class="dropdown-search" id="areaSearch" placeholder="🔍 Rechercher une zone…">
-          <div id="areaOptions"></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="api-logo-inner">
+        <div class="api-logo-sq">
+          <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="14" width="16" height="14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <polygon points="5,14 15,5 25,14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <rect x="9" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="17" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="12" y="22" width="6" height="6" fill="none" stroke="#C8622A" stroke-width="1"/>
+          </svg>
         </div>
+        <div class="api-logo-cream">API</div>
       </div>
-      <input type="hidden" id="areaValue">
+      <button class="btn-logout" onclick="logout()" title="Accueil"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg></button>
+    </div>
+  </div>
+
+  <div class="admin-main">
+    <!-- Stats -->
+    <div class="stats-bar" id="adminStats"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="filterTab('all', this)">Tous</button>
+      <button class="tab-btn" onclick="filterTab('pending', this)">⏳ Attente</button>
+      <button class="tab-btn" onclick="filterTab('diagnostic', this)">🔍 Devis</button>
+      <button class="tab-btn" onclick="filterTab('approved', this)">✅ Approuvés</button>
+      <button class="tab-btn" onclick="filterTab('tocomplete', this)">🔵 À compléter</button>
+      <button class="tab-btn" onclick="filterTab('done', this)">🏁 À valider</button>
     </div>
 
-    <!-- BUILDING DROPDOWN -->
-    <div class="field">
-      <label>Bâtiment (Building)</label>
-      <div class="dropdown-wrap" id="buildingWrap">
-        <input class="dropdown-input" id="buildingDisplay" placeholder="Sélectionnez d'abord une zone…" readonly>
-        <span class="dropdown-arrow" id="buildingArrow">▼</span>
-        <div class="dropdown-list" id="buildingList">
-          <input class="dropdown-search" id="buildingSearch" placeholder="🔍 Rechercher ou saisir…">
-          <div id="buildingOptions"></div>
+    <!-- Incidents list -->
+    <div class="incidents-list" id="adminIncidentsList"></div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" onclick="openNewIncident()" title="Nouveau signalement">+</button>
+</div>
+
+<!-- ══ SCREEN 3 : TECH ══ -->
+<div class="screen" id="screen-tech">
+  <div class="app-header">
+    <div class="header-logo">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" height="34">
+        <path d="M6 50 L6 8 L18 8 C26 8 33 13 33 22 C33 31 26 35 18 35 L14 35 L14 50 Z" fill="#00C8F0"/>
+        <path d="M14 14 L18 14 C22 14 25 17 25 22 C25 27 22 29 18 29 L14 29 Z" fill="#FFFFFF"/>
+        <path d="M6 44 C6 44 2 48 4 52 C6 56 10 54 12 50 L14 50 L14 44 Z" fill="#00C8F0"/>
+        <text x="40" y="42" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
+      </svg>
+    </div>
+    <div class="header-center" id="techHeaderTitle">
+      Mes Tâches<span>Interface Technicien</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="api-logo-inner">
+        <div class="api-logo-sq">
+          <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="14" width="16" height="14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <polygon points="5,14 15,5 25,14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <rect x="9" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="17" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="12" y="22" width="6" height="6" fill="none" stroke="#C8622A" stroke-width="1"/>
+          </svg>
         </div>
+        <div class="api-logo-cream">API</div>
       </div>
-      <input type="hidden" id="buildingValue">
+      <button class="btn-logout" onclick="logout()" title="Accueil"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg></button>
     </div>
   </div>
 
-  <!-- CARD 2 : ÉQUIPEMENT -->
-  <div class="card">
-    <div class="card-title">Équipement</div>
-
-    <div class="field">
-      <label>Type d'équipement</label>
-      <div class="dropdown-wrap" id="equipWrap">
-        <input class="dropdown-input" id="equipDisplay" placeholder="Sélectionner ou saisir un équipement…">
-        <span class="dropdown-arrow" id="equipArrow">▼</span>
-        <div class="dropdown-list" id="equipList">
-          <input class="dropdown-search" id="equipSearch" placeholder="🔍 Rechercher ou saisir…">
-          <div id="equipOptions"></div>
-        </div>
-      </div>
-      <input type="hidden" id="equipValue">
+  <div class="tech-main">
+    <div class="tech-welcome">
+      <h2 id="techWelcomeName">👋 Bonjour, RAZ</h2>
+      <p>Voici vos interventions du jour</p>
+      <div class="task-count" id="techTaskCount">Chargement...</div>
     </div>
 
-    <!-- ── STATUT (combobox éditable) ── -->
-    <div class="field">
-      <label>Statut</label>
-      <div class="dropdown-wrap" id="statusWrap">
-        <input class="dropdown-input" id="statusDisplay" placeholder="Sélectionner ou saisir un statut…">
-        <span class="dropdown-arrow" id="statusArrow">▼</span>
-        <div class="dropdown-list" id="statusList">
-          <input class="dropdown-search" id="statusSearch" placeholder="🔍 Rechercher ou saisir…">
-          <div id="statusOptions"></div>
-        </div>
-      </div>
-      <input type="hidden" id="statusValue">
+    <div>
+      <div class="section-title">Interventions assignées</div>
+      <div class="incidents-list" id="techIncidentsList"></div>
     </div>
 
-    <!-- ── RÉFÉRENCE (texte libre) ── -->
-    <div class="field">
-      <label>Référence</label>
-      <input type="text" class="dropdown-input" id="referenceInput"
-        placeholder="Ex : REF-9874" style="cursor:text;">
-    </div>
-
-  </div>
-
-  <!-- CARD 3 : PHOTO & FICHIERS -->
-  <div class="card">
-    <div class="card-title">Photo &amp; Fichier</div>
-    <div class="camera-section">
-
-      <!-- Bouton principal : caméra directe -->
-      <label for="cameraInput" class="btn-camera">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
+    <!-- Bouton Maintenance -->
+    <div style="padding:4px 0 16px;">
+      <button onclick="showScreen('maintenance')" style="
+        width:100%;
+        padding:16px;
+        background:linear-gradient(135deg,#F97316,#EA580C);
+        color:white;
+        border:none;
+        border-radius:var(--radius);
+        font-size:14px;
+        font-weight:800;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:10px;
+        box-shadow:0 4px 16px rgba(249,115,22,.3);
+        letter-spacing:.3px;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
         </svg>
-        Prendre une photo
-      </label>
-      <input type="file" id="cameraInput" accept="image/*" capture="environment">
-
-      <!-- Lien discret : joindre fichier galerie/PDF -->
-      <label for="fileInput" class="attach-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
-        ou joindre un fichier (PDF, image)
-      </label>
-      <input type="file" id="fileInput" accept="image/*,application/pdf">
-
-      <!-- Aperçu photo (caméra) -->
-      <div class="photo-preview" id="photoPreview">
-        <img id="photoImg" src="" alt="Photo capturée">
-        <button class="remove-photo" id="removePhoto" title="Supprimer">✕</button>
-        <div class="photo-label" id="photoLabel"></div>
-      </div>
-
-      <!-- Badge fichier joint (PDF ou image galerie) -->
-      <div class="file-badge" id="fileBadge">
-        <div class="file-badge-icon" id="fileBadgeIcon">PDF</div>
-        <span class="file-badge-name" id="fileBadgeName"></span>
-        <button class="file-badge-remove" id="fileRemove" title="Retirer">✕</button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- CARD 4 : COMMENTAIRES -->
-  <div class="card">
-    <div class="card-title">Commentaires &amp; Notes</div>
-    <div class="field">
-      <label>Observations terrain</label>
-      <textarea class="notes-area" id="notesField" rows="6"
-        placeholder="Saisir vos commentaires, observations, anomalies constatées…"></textarea>
-    </div>
-  </div>
-
-  <!-- CARD 5 : RÉCAPITULATIF -->
-  <div class="card">
-    <div class="card-title">Récapitulatif</div>
-    <div class="status-bar" id="statusBar">
-      <span class="status-pill" id="st-area">Zone —</span>
-      <span class="status-pill" id="st-building">Bâtiment —</span>
-      <span class="status-pill" id="st-equip">Équipement —</span>
-      <span class="status-pill" id="st-status">Statut —</span>
-      <span class="status-pill" id="st-reference">Référence —</span>
-      <span class="status-pill" id="st-photo">Photo —</span>
-      <span class="status-pill" id="st-notes">Notes —</span>
-    </div>
-    <div class="summary-preview" id="summaryPreview"></div>
-  </div>
-
-  <!-- CARD 6 : ACTIONS -->
-  <div class="card">
-    <div class="card-title">Actions</div>
-    <div class="btn-row">
-      <button class="btn btn-pdf" id="btnPdf">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        Générer PDF
-      </button>
-      <button class="btn btn-share" id="btnShare">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-        </svg>
-        Partager
+        Problème reporté pendant la maintenance
       </button>
     </div>
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn btn-reset" id="btnReset">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="1 4 1 10 7 10"/>
-          <path d="M3.51 15a9 9 0 1 0 .49-3.99"/>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5 : MAINTENANCE (Dashboard V1) ══ -->
+<div class="screen" id="screen-maintenance">
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-logo">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" height="34">
+        <path d="M6 50 L6 8 L18 8 C26 8 33 13 33 22 C33 31 26 35 18 35 L14 35 L14 50 Z" fill="#00C8F0"/>
+        <path d="M14 14 L18 14 C22 14 25 17 25 22 C25 27 22 29 18 29 L14 29 Z" fill="#FFFFFF"/>
+        <path d="M6 44 C6 44 2 48 4 52 C6 56 10 54 12 50 L14 50 L14 44 Z" fill="#00C8F0"/>
+        <text x="40" y="42" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
+      </svg>
+    </div>
+    <div class="header-center">
+      Rapport<span>Inspection Maintenance</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="api-logo-inner">
+        <div class="api-logo-sq">
+          <svg viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="14" width="16" height="14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <polygon points="5,14 15,5 25,14" fill="none" stroke="#C8622A" stroke-width="1.4"/>
+            <rect x="9" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="17" y="16" width="4" height="4" fill="none" stroke="#C8622A" stroke-width="1"/>
+            <rect x="12" y="22" width="6" height="6" fill="none" stroke="#C8622A" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="api-logo-cream">API</div>
+      </div>
+      <button class="btn-logout" onclick="showScreen('tech');renderTechDashboard();" title="Retour">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
-        Réinitialiser
       </button>
     </div>
   </div>
 
-</main>
+  <!-- Breadcrumb -->
+  <div class="breadcrumb" style="background:#F0F4FA;padding:10px 24px;font-size:12px;color:#666888;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #D8E4F0;">
+    INTERFACE RAZ <span style="color:#00C8F0;margin:0 6px;">▶</span> RAPPORT D'INSPECTION
+  </div>
+
+  <!-- Contenu dashboard maintenance -->
+  <div id="maintenanceDashboard" style="max-width:700px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px;"></div>
+</div>
+
+<!-- ══ SCREEN 4 : FORMULAIRE ══ -->
+<div class="screen" id="screen-form">
+  <div class="app-header">
+    <div class="header-logo">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" height="34">
+        <path d="M6 50 L6 8 L18 8 C26 8 33 13 33 22 C33 31 26 35 18 35 L14 35 L14 50 Z" fill="#00C8F0"/>
+        <path d="M14 14 L18 14 C22 14 25 17 25 22 C25 27 22 29 18 29 L14 29 Z" fill="#FFFFFF"/>
+        <path d="M6 44 C6 44 2 48 4 52 C6 56 10 54 12 50 L14 50 L14 44 Z" fill="#00C8F0"/>
+        <text x="40" y="42" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#0D0E2B" letter-spacing="1">ROLIFIC</text>
+      </svg>
+    </div>
+    <div class="header-center" id="formScreenTitle">
+      Nouveau<span>Signalement</span>
+    </div>
+    <button class="btn-logout" onclick="goBack()">✕</button>
+  </div>
+
+  <div class="form-main">
+    <!-- Phase indicator -->
+    <div class="phase-indicator">
+      <div class="phase-steps" id="phaseSteps">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Dynamic form content -->
+    <div id="formContent"></div>
+  </div>
+</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-/* ────────────────────────────────────────────────
-   DATA
-──────────────────────────────────────────────── */
-const AREAS = [
+/* ══════════════════════════════════════════════
+   DATA & STATE
+══════════════════════════════════════════════ */
+const ADMIN_PIN = '974';
+let currentTechProfile = 'raz'; // 'raz' ou 'manager'
+
+/* ── DONNÉES AREAS & BÂTIMENTS ── */
+const AREAS_DATA = [
   {
-    id:'a1', label:'AREA 1 — Secteur Arjan (73 équip.)',
-    buildings:[
-      'API - Arjan Seven - A2 (28)',
-      'API - Arjan Seven - B2 (15)',
-      'API - Arjan Seven - B3 (15)',
-      'API - Arjan Two - C1 (7)',
-      'API - Arjan Two - C2 (8)',
+    id: 'a1', label: 'AREA 1 — Secteur Arjan',
+    buildings: [
+      'API - Arjan Seven - A2',
+      'API - Arjan Seven - B2',
+      'API - Arjan Seven - B3',
+      'API - Arjan Two - C1',
+      'API - Arjan Two - C2',
     ]
   },
   {
-    id:'a2', label:'AREA 2 — Secteur Meydan (105 équip.)',
-    buildings:[
-      'API - Meydan Avenue A (24)',
-      'API - Meydan Avenue B (24)',
-      'API - Meydan Avenue C (25)',
-      'API - Meydan Avenue D (23)',
-      'API Meydan Horizon (9)',
+    id: 'a2', label: 'AREA 2 — Secteur Meydan',
+    buildings: [
+      'API - Meydan Avenue A',
+      'API - Meydan Avenue B',
+      'API - Meydan Avenue C',
+      'API - Meydan Avenue D',
+      'API Meydan Horizon',
     ]
   },
   {
-    id:'a3', label:'AREA 3 — Villas & Résidences (31 équip.)',
-    buildings:[
-      'API 1000 (22)',
-      'API 29 Courtyard Villas (9)',
+    id: 'a3', label: 'AREA 3 — Villas & Résidences',
+    buildings: [
+      'API 1000',
+      'API 29 Courtyard Villas',
     ]
   },
   {
-    id:'a4', label:'AREA 4 — Jumeirah / Wasl / Satwa (36 équip.)',
-    buildings:[
-      'API 17 Jumeirah Villas (9)',
-      'API Al Wasl 22 Villas (9)',
-      'API Diyafah Building (9)',
-      'API Duwest Al Satwa (9)',
+    id: 'a4', label: 'AREA 4 — Jumeirah / Wasl / Satwa',
+    buildings: [
+      'API 17 Jumeirah Villas',
+      'API Al Wasl 22 Villas',
+      'API Diyafah Building',
+      'API Duwest Al Satwa',
     ]
   },
   {
-    id:'a5', label:'AREA 5 — Muhaisna & Secteur Nord (76 équip.)',
-    buildings:[
-      'API Al Muhaisna - Block 1 A (10)',
-      'API Al Muhaisna - Block 1 B (9)',
-      'API Al Muhaisna - Block 1 C (10)',
-      'API Al Muhaisna - Block 1 D (9)',
-      'API Residency - Al Nahda 1 (10)',
-      "API Al Warqa'A Residency (9)",
-      'API Mirdif 13 Villas (10)',
-      'API Silicon Residency (9)',
+    id: 'a5', label: 'AREA 5 — Muhaisna & Secteur Nord',
+    buildings: [
+      'API Al Muhaisna - Block 1 A',
+      'API Al Muhaisna - Block 1 B',
+      'API Al Muhaisna - Block 1 C',
+      'API Al Muhaisna - Block 1 D',
+      'API Residency - Al Nahda 1',
+      "API Al Warqa A Residency",
+      'API Mirdif 13 Villas',
+      'API Silicon Residency',
     ]
   },
   {
-    id:'a6', label:'AREA 6 — Barsha Villas (26 équip.)',
-    buildings:[
-      'API 43 Villas Barsha (9)',
-      'API 46 Villas Barsha (17)',
+    id: 'a6', label: 'AREA 6 — Barsha Villas',
+    buildings: [
+      'API 43 Villas Barsha',
+      'API 46 Villas Barsha',
     ]
   },
   {
-    id:'a7', label:'AREA 7 — Centrepoint & Al Raffa (37 équip.)',
-    buildings:[
-      'API Centrepoint Apart. (9)',
-      'API Al Raffa 1 Building (10)',
-      'API Al Raffa 2 Building (9)',
-      'API Al Raffa 3 Building (9)',
+    id: 'a7', label: 'AREA 7 — Centrepoint & Al Raffa',
+    buildings: [
+      'API Centrepoint Apart.',
+      'API Al Raffa 1 Building',
+      'API Al Raffa 2 Building',
+      'API Al Raffa 3 Building',
     ]
   },
   {
-    id:'a8', label:'AREA 8 — Barsha Heights & Tecom (25 équip.)',
-    buildings:[
-      'API Barsha Heights Resid. (9)',
-      'API Tecom Residency (16)',
+    id: 'a8', label: 'AREA 8 — Barsha Heights & Tecom',
+    buildings: [
+      'API Barsha Heights Resid.',
+      'API Tecom Residency',
     ]
   },
 ];
 
-const EQUIPMENT = {
-  '🏃 Cardio': [
-    'Treadmill','Elliptical Cross Trainer','Stationary Upright Bike',
-    'Recumbent Bike','Spin Bike / Indoor Cycling Bike','Stair Climber / StairMaster',
-    'Rowing Machine / RowErg','Assault AirBike','SkiErg','Arc Trainer',
-  ],
-  '💪 Machines Guidées': [
-    'Chest Press Machine','Incline Chest Press Machine','Pec Deck Machine / Butterfly',
-    'Lat Pulldown Machine','Seated Cable Row Machine','Shoulder Press Machine',
-    'Lateral Raise Machine','Biceps Curl Machine','Triceps Extension Machine',
-    'Assisted Pull-Up and Dip Machine','Leg Press Machine','Hack Squat Machine',
-    'Leg Extension Machine','Seated Leg Curl Machine','Lying Leg Curl Machine',
-    'Standing Calf Raise Machine','Seated Calf Raise Machine',
-    'Abductor Machine','Adductor Machine','Abdominal Crunch Machine',
-    'Back Extension Machine / Hyperextension','Smith Machine','Cable Crossover Machine / Functional Trainer',
-  ],
-  '🏋 Poids Libres': [
-    'Dumbbells','Barbell','EZ-Curl Bar','Trap Bar / Hex Bar',
-    'Kettlebells','Olympic Weight Plates','Bumper Plates',
-  ],
-  '🪑 Bancs & Racks': [
-    'Flat Bench','Adjustable Bench','Olympic Bench Press',
-    'Preacher Curl Bench','Roman Chair','Power Rack / Power Cage',
-    'Squat Stand',
-  ],
-  '🤸 Fonctionnel & Accessoires': [
-    'Pull-Up Bar','Gymnastic Rings','TRX Suspension Trainer',
-    'Plyo Box / Plyometric Box','Battle Ropes','Medicine Ball',
-    'Slam Ball','Wall Ball','Ab Wheel / Ab Roller',
-    'Resistance Bands','Sandbag','Weight Vest','Foam Roller',
-  ],
-};
+function getBuildingsForArea(areaLabel) {
+  const found = AREAS_DATA.find(a => a.label === areaLabel);
+  return found ? found.buildings : [];
+}
 
-const STATUS_OPTIONS = [
-  'Out of service',
-  'Missing',
-  'Not listed',
-  'Missing tag',
-];
+function updateBuildingDropdown(areaLabel) {
+  const buildings = getBuildingsForArea(areaLabel);
+  const sel = document.getElementById('f_building');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Sélectionner un bâtiment —</option>';
+  buildings.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b;
+    opt.textContent = b;
+    sel.appendChild(opt);
+  });
+  sel.disabled = buildings.length === 0;
+}
 
-/* ────────────────────────────────────────────────
-   STATE
-──────────────────────────────────────────────── */
-let state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'', attachedFileName:null, attachedFileType:null, status:'', reference:'' };
-let lastPdfBlob = null;
 
-/* ────────────────────────────────────────────────
+const RAZ_WHATSAPP = ''; // Numéro RAZ avec indicatif ex: 971501234567
+
+let currentRole = null;
+let currentIncidentId = null;
+let currentFormPhase = 0;
+let formPhotoDataURL = null;
+let devisRows = [];
+
+// Storage clé pour les incidents
+const STORAGE_KEY = 'prolific_incidents_v2';
+
+function getIncidents() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveIncidents(incidents) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents));
+}
+
+function genId() {
+  return 'INC-' + Date.now().toString().slice(-6);
+}
+
+/* ══════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function logout() {
+  currentRole = null;
+  showScreen('login');
+}
+
+function goBack() {
+  if (currentRole === 'admin') showScreen('admin');
+  else showScreen('tech');
+}
+
+/* ══════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════ */
+function showPinModal() {
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinModal').classList.add('active');
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+}
+
+function hidePinModal() {
+  document.getElementById('pinModal').classList.remove('active');
+}
+
+function checkPin() {
+  const pin = document.getElementById('pinInput').value;
+  if (pin === ADMIN_PIN) {
+    hidePinModal();
+    loginAdmin();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
+  }
+}
+
+document.getElementById('pinInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPin();
+});
+document.addEventListener('keydown', e => {
+  const mp = document.getElementById('managerPinInput');
+  if (document.activeElement === mp && e.key === 'Enter') checkManagerPin();
+});
+
+function loginAdmin() {
+  currentRole = 'admin';
+  showScreen('admin');
+  renderAdminDashboard();
+}
+
+function loginTech(profile = 'raz') {
+  if (profile === 'manager') {
+    // Manager nécessite un PIN
+    showManagerPinModal();
+    return;
+  }
+  currentRole = 'tech';
+  currentTechProfile = profile;
+  showScreen('tech');
+  const titleEl = document.getElementById('techHeaderTitle');
+  if (titleEl) titleEl.innerHTML = 'Mes Tâches<span>Interface Technicien</span>';
+  renderTechDashboard();
+}
+
+function showManagerPinModal() {
+  document.getElementById('managerPinInput').value = '';
+  document.getElementById('managerPinError').style.display = 'none';
+  document.getElementById('managerPinModal').classList.add('active');
+  setTimeout(() => document.getElementById('managerPinInput').focus(), 100);
+}
+
+function checkManagerPin() {
+  const pin = document.getElementById('managerPinInput').value;
+  if (pin === '974') {
+    document.getElementById('managerPinModal').classList.remove('active');
+    currentRole = 'manager';
+    currentTechProfile = 'manager';
+    showScreen('tech');
+    const titleEl = document.getElementById('techHeaderTitle');
+    if (titleEl) titleEl.innerHTML = 'Mes Tâches<span>Interface Manager</span>';
+    renderTechDashboard();
+  } else {
+    document.getElementById('managerPinError').style.display = 'block';
+    document.getElementById('managerPinInput').value = '';
+    document.getElementById('managerPinInput').focus();
+  }
+}
+
+/* ══════════════════════════════════════════════
    TOAST
-──────────────────────────────────────────────── */
-function showToast(msg, type='') {
+══════════════════════════════════════════════ */
+function showToast(msg, type = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
-  setTimeout(()=>{ t.className = 'toast'; }, 3000);
+  setTimeout(() => t.className = 'toast', 3000);
 }
 
-/* ────────────────────────────────────────────────
-   SEARCHABLE DROPDOWN FACTORY
-──────────────────────────────────────────────── */
-function makeDropdown({ displayId, listId, searchId, optionsId, arrowId, valueId, allowManual=false, onSelect }) {
-  const display = document.getElementById(displayId);
-  const list    = document.getElementById(listId);
-  const search  = document.getElementById(searchId);
-  const optsCon = document.getElementById(optionsId);
-  const arrow   = document.getElementById(arrowId);
-  const hidden  = document.getElementById(valueId);
-  let items = [];
-  let open = false;
+/* ══════════════════════════════════════════════
+   ADMIN DASHBOARD
+══════════════════════════════════════════════ */
+const STATUS_LABELS = {
+  pending: 'En attente',
+  diagnostic: 'Devis envoyé',
+  approved: 'Approuvé — En cours',
+  tocomplete: 'À compléter',
+  done: 'Terminé — À valider',
+  closed: 'Clôturé'
+};
 
-  function renderOptions(filter='') {
-    optsCon.innerHTML = '';
-    const q = filter.toLowerCase();
-    let visCount = 0;
-    if (Array.isArray(items)) {
-      // flat list
-      items.forEach(item => {
-        if (!q || item.toLowerCase().includes(q)) {
-          const d = document.createElement('div');
-          d.className = 'dropdown-option' + (hidden.value===item?' selected':'');
-          d.textContent = item;
-          d.onclick = () => select(item);
-          optsCon.appendChild(d);
-          visCount++;
-        }
-      });
-    } else {
-      // grouped
-      for (const [group, list2] of Object.entries(items)) {
-        const filtered = list2.filter(i=> !q || i.toLowerCase().includes(q));
-        if (!filtered.length) continue;
-        const h = document.createElement('div');
-        h.className = 'dropdown-option group-header';
-        h.textContent = group;
-        optsCon.appendChild(h);
-        filtered.forEach(item => {
-          const d = document.createElement('div');
-          d.className = 'dropdown-option' + (hidden.value===item?' selected':'');
-          d.textContent = item;
-          d.onclick = () => select(item);
-          optsCon.appendChild(d);
-          visCount++;
-        });
-      }
-    }
-    if (allowManual && filter && visCount===0) {
-      const d = document.createElement('div');
-      d.className = 'dropdown-option manual-entry';
-      d.textContent = `+ Ajouter "${filter}"`;
-      d.onclick = () => select(filter);
-      optsCon.appendChild(d);
-    } else if (allowManual && filter) {
-      const d = document.createElement('div');
-      d.className = 'dropdown-option manual-entry';
-      d.textContent = `+ Saisir manuellement : "${filter}"`;
-      d.onclick = () => select(filter);
-      optsCon.appendChild(d);
-    }
-  }
+const STATUS_BADGES = {
+  pending: 'badge-pending',
+  diagnostic: 'badge-diagnostic',
+  approved: 'badge-approved',
+  tocomplete: 'badge-tocomplete',
+  done: 'badge-done',
+  closed: 'badge-closed'
+};
 
-  function openList() {
-    list.classList.add('open');
-    arrow.classList.add('open');
-    open = true;
-    search.value = '';
-    renderOptions();
-    setTimeout(()=>search.focus(), 50);
-  }
-  function closeList() {
-    list.classList.remove('open');
-    arrow.classList.remove('open');
-    open = false;
-  }
-  function select(val) {
-    display.value = val;
-    hidden.value = val;
-    closeList();
-    if (onSelect) onSelect(val);
-    updateStatus();
-  }
+let currentFilter = 'all';
 
-  display.addEventListener('click', ()=> open ? closeList() : openList());
-  search.addEventListener('input', ()=> renderOptions(search.value));
-  search.addEventListener('keydown', e => {
-    if (e.key==='Enter' && allowManual && search.value.trim()) {
-      select(search.value.trim());
-    }
-  });
-  document.addEventListener('click', e => {
-    if (!document.getElementById(listId.replace('List','Wrap'))?.contains(e.target) &&
-        !document.getElementById(listId)?.contains(e.target) &&
-        e.target !== display) {
-      closeList();
-    }
+function renderAdminDashboard() {
+  const incidents = getIncidents();
+
+  // Stats
+  const stats = { pending: 0, diagnostic: 0, approved: 0, tocomplete: 0, done: 0 };
+  incidents.forEach(i => {
+    if (stats[i.status] !== undefined) stats[i.status]++;
   });
 
-  return {
-    setItems(newItems) { items = newItems; },
-    clear() { display.value=''; hidden.value=''; search.value=''; renderOptions(); },
-    getValue() { return hidden.value; }
-  };
+  document.getElementById('adminStats').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
+      <div class="stat-card pending">
+        <div class="stat-num" style="color:var(--warning)">${stats.pending}</div>
+        <div class="stat-label">En attente</div>
+      </div>
+      <div class="stat-card diag">
+        <div class="stat-num" style="color:var(--cyan-dk)">${stats.diagnostic}</div>
+        <div class="stat-label">Devis</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:100%">
+      <div class="stat-card approved">
+        <div class="stat-num" style="color:var(--purple)">${stats.approved}</div>
+        <div class="stat-label">En cours</div>
+      </div>
+      <div class="stat-card tocomplete">
+        <div class="stat-num" style="color:#0284C7">${stats.tocomplete}</div>
+        <div class="stat-label">À compléter</div>
+      </div>
+      <div class="stat-card done">
+        <div class="stat-num" style="color:var(--success)">${stats.done}</div>
+        <div class="stat-label">À valider</div>
+      </div>
+    </div>
+  `;
+
+  // List
+  const filtered = currentFilter === 'all'
+    ? incidents
+    : incidents.filter(i => i.status === currentFilter);
+
+  const list = document.getElementById('adminIncidentsList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div>📋</div><p>Aucun incident dans cette catégorie</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(inc => renderAdminCard(inc)).join('');
 }
 
-/* ────────────────────────────────────────────────
-   INIT DROPDOWNS
-──────────────────────────────────────────────── */
-const areaDD = makeDropdown({
-  displayId:'areaDisplay', listId:'areaList', searchId:'areaSearch',
-  optionsId:'areaOptions', arrowId:'areaArrow', valueId:'areaValue',
-  onSelect(val) {
-    state.area = val;
-    const found = AREAS.find(a=>a.label===val);
-    buildingDD.clear();
-    state.building = '';
-    if (found) {
-      buildingDD.setItems(found.buildings);
-      document.getElementById('buildingDisplay').placeholder = 'Sélectionner un bâtiment…';
-    }
-  }
-});
-areaDD.setItems(AREAS.map(a=>a.label));
+function renderAdminCard(inc) {
+  const badge = STATUS_BADGES[inc.status] || 'badge-pending';
+  const label = STATUS_LABELS[inc.status] || inc.status;
 
-const buildingDD = makeDropdown({
-  displayId:'buildingDisplay', listId:'buildingList', searchId:'buildingSearch',
-  optionsId:'buildingOptions', arrowId:'buildingArrow', valueId:'buildingValue',
-  allowManual: true,
-  onSelect(val) { state.building = val; }
-});
-buildingDD.setItems([]);
-
-const equipDD = makeDropdown({
-  displayId:'equipDisplay', listId:'equipList', searchId:'equipSearch',
-  optionsId:'equipOptions', arrowId:'equipArrow', valueId:'equipValue',
-  allowManual: true,
-  onSelect(val) { state.equipment = val; }
-});
-equipDD.setItems(EQUIPMENT);
-
-// Allow typing directly in equip display
-document.getElementById('equipDisplay').removeAttribute('readonly');
-document.getElementById('equipDisplay').addEventListener('input', function() {
-  state.equipment = this.value;
-  document.getElementById('equipValue').value = this.value;
-  updateStatus();
-});
-
-/* ── STATUT (combobox éditable) ── */
-const statusDD = makeDropdown({
-  displayId:'statusDisplay', listId:'statusList', searchId:'statusSearch',
-  optionsId:'statusOptions', arrowId:'statusArrow', valueId:'statusValue',
-  allowManual: true,
-  onSelect(val) { state.status = val; }
-});
-statusDD.setItems(STATUS_OPTIONS);
-
-// Permet de taper directement un statut personnalisé dans le champ affiché
-document.getElementById('statusDisplay').removeAttribute('readonly');
-document.getElementById('statusDisplay').addEventListener('input', function() {
-  state.status = this.value;
-  document.getElementById('statusValue').value = this.value;
-  updateStatus();
-});
-
-/* ── RÉFÉRENCE (texte libre) ── */
-document.getElementById('referenceInput').addEventListener('input', function() {
-  state.reference = this.value;
-  updateStatus();
-});
-
-/* ────────────────────────────────────────────────
-   CAMERA
-──────────────────────────────────────────────── */
-document.getElementById('cameraInput').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  state.photoName = file.name;
-  const reader = new FileReader();
-  reader.onload = e => {
-    compressImage(e.target.result, 1200, 0.75, compressed => {
-      state.photoDataURL = compressed;
-      document.getElementById('photoImg').src = compressed;
-      document.getElementById('photoPreview').style.display = 'block';
-      document.getElementById('photoLabel').textContent = '📷 ' + file.name + '  •  ' + (file.size/1024/1024).toFixed(1) + ' Mo → compressée';
-      updateStatus();
-    });
-  };
-  reader.readAsDataURL(file);
-});
-
-document.getElementById('removePhoto').addEventListener('click', () => {
-  state.photoDataURL = null;
-  state.photoName = '';
-  document.getElementById('photoPreview').style.display = 'none';
-  document.getElementById('cameraInput').value = '';
-  document.getElementById('fileInput').value = '';
-  document.getElementById('fileBadge').style.display = 'none';
-  updateStatus();
-});
-
-/* ── FICHIER JOINT (galerie / PDF) ── */
-document.getElementById('fileInput').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const isPDF = file.type === 'application/pdf';
-  const badge = document.getElementById('fileBadge');
-  const icon  = document.getElementById('fileBadgeIcon');
-  const name  = document.getElementById('fileBadgeName');
-
-  state.attachedFileName = file.name;
-  state.attachedFileType = isPDF ? 'pdf' : 'image';
-
-  if (isPDF) {
-    // PDF : on garde juste le nom, pas de dataURL
-    state.attachedFileDataURL = null;
-    icon.textContent = 'PDF';
-    icon.className = 'file-badge-icon';
-    name.textContent = file.name;
-    badge.style.display = 'flex';
-    // Cacher l'aperçu photo si présent
-    document.getElementById('photoPreview').style.display = 'none';
-    state.photoDataURL = null;
-  } else {
-    // Image depuis galerie : compresser et afficher comme photo
-    const reader = new FileReader();
-    reader.onload = e => {
-      compressImage(e.target.result, 1200, 0.75, compressed => {
-        state.photoDataURL = compressed;
-        state.photoName = file.name;
-        document.getElementById('photoImg').src = compressed;
-        document.getElementById('photoPreview').style.display = 'block';
-        document.getElementById('photoLabel').textContent = '🖼 ' + file.name;
-        // Cacher badge fichier
-        badge.style.display = 'none';
-        state.attachedFileName = null;
-        state.attachedFileType = null;
-      });
-    };
-    reader.readAsDataURL(file);
-    icon.className = 'file-badge-icon img-icon';
-    icon.textContent = 'IMG';
-    name.textContent = file.name;
-  }
-  updateStatus();
-});
-
-document.getElementById('fileRemove').addEventListener('click', () => {
-  state.attachedFileName = null;
-  state.attachedFileType = null;
-  state.attachedFileDataURL = null;
-  document.getElementById('fileBadge').style.display = 'none';
-  document.getElementById('fileInput').value = '';
-  updateStatus();
-});
-
-function compressImage(dataURL, maxW, quality, cb) {
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    let w = img.width, h = img.height;
-    if (w > maxW) { h = h * maxW / w; w = maxW; }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    cb(canvas.toDataURL('image/jpeg', quality));
-  };
-  img.src = dataURL;
-}
-
-/* ────────────────────────────────────────────────
-   NOTES
-──────────────────────────────────────────────── */
-document.getElementById('notesField').addEventListener('input', function() {
-  state.notes = this.value;
-  updateStatus();
-});
-
-/* ────────────────────────────────────────────────
-   STATUS BAR
-──────────────────────────────────────────────── */
-function updateStatus() {
-  const pills = {
-    'st-area':      { val: state.area,      label: 'Zone' },
-    'st-building':  { val: state.building,  label: 'Bâtiment' },
-    'st-equip':     { val: state.equipment, label: 'Équipement' },
-    'st-status':    { val: state.status,    label: 'Statut' },
-    'st-reference': { val: state.reference, label: 'Référence' },
-    'st-photo':     { val: state.photoDataURL || state.attachedFileName, label: 'Photo/Fichier' },
-    'st-notes':     { val: state.notes,     label: 'Notes' },
-  };
-  let allFilled = true;
-  for (const [id, {val, label}] of Object.entries(pills)) {
-    const el = document.getElementById(id);
-    if (val) {
-      el.className = 'status-pill filled';
-      el.textContent = '✓ ' + label;
-    } else {
-      el.className = 'status-pill';
-      el.textContent = label + ' —';
-      allFilled = false;
-    }
-  }
-  // Summary
-  const sp = document.getElementById('summaryPreview');
-  if (state.area || state.building || state.equipment) {
-    sp.style.display = 'block';
-    sp.innerHTML = `
-      <strong>Zone :</strong> ${state.area||'—'}<br>
-      <strong>Bâtiment :</strong> ${state.building||'—'}<br>
-      <strong>Équipement :</strong> ${state.equipment||'—'}<br>
-      <strong>Statut :</strong> ${state.status||'—'}<br>
-      <strong>Référence :</strong> ${state.reference||'—'}<br>
-      <strong>Notes :</strong> ${state.notes ? state.notes.substring(0,80)+(state.notes.length>80?'…':'') : '—'}<br>
-      <strong>Photo :</strong> ${state.photoDataURL ? '✓ Attachée' : '—'}
+  let devisHtml = '';
+  if (inc.devis && inc.devis.length > 0) {
+    const total = inc.devis.reduce((s, d) => s + (parseFloat(d.cost) || 0), 0);
+    devisHtml = `
+      <div class="devis-section">
+        <div class="devis-title">💰 Estimation des travaux</div>
+        <div class="devis-items">
+          ${inc.devis.map(d => `
+            <div class="devis-item">
+              <span>${d.description}</span>
+              <strong>${d.cost} AED</strong>
+            </div>
+          `).join('')}
+        </div>
+        <div class="devis-total">
+          <span>Total estimé</span>
+          <span>${total} AED</span>
+        </div>
+        ${inc.delay ? `<div style="margin-top:8px;font-size:12px;color:var(--gray-2)">⏱ Délai estimé : <strong>${inc.delay}</strong></div>` : ''}
+      </div>
     `;
-  } else {
-    sp.style.display = 'none';
+  }
+
+  let actionsHtml = '';
+  if (inc.status === 'diagnostic') {
+    actionsHtml = `
+      <div class="incident-actions" style="flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:8px;">
+          <button class="btn-action btn-approve" onclick="approveIncident('${inc.id}')">
+            ✅ Approuver
+          </button>
+          <button class="btn-action" onclick="markToComplete('${inc.id}')"
+            style="flex:1;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">
+            🔵 À compléter
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-action btn-pdf" onclick="generateDevisPDF('${inc.id}')" style="background:linear-gradient(135deg,#00C8F0,#009FC2);color:#0D0E2B;flex:1;">
+            📄 Générer PDF
+          </button>
+        </div>
+        <button class="btn-action" onclick="sendDevisEmail('${inc.id}')"
+          style="width:100%;background:linear-gradient(135deg,#7B61FF,#5A47CC);color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          📧 Envoyer le devis
+        </button>
+        <button class="btn-action btn-detail" onclick="openAdminEditForm('${inc.id}')" style="width:100%;">
+          ✏️ Modifier les informations du devis
+        </button>
+      </div>
+    `;
+  } else if (inc.status === 'done') {
+    actionsHtml = `
+      <div class="incident-actions">
+        <button class="btn-action btn-validate" onclick="closeIncident('${inc.id}')">
+          🏁 Valider & Clôturer
+        </button>
+      </div>
+    `;
+  } else if (inc.status === 'pending') {
+    actionsHtml = `
+      <div class="incident-actions" style="flex-direction:column;gap:8px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--gray-2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Assigner à :</div>
+          <div class="assign-toggle" id="toggle-${inc.id}">
+            <button class="assign-toggle-btn active" id="btn-raz-${inc.id}"
+              onclick="setAssignee('${inc.id}','raz')">🔧 RAZ</button>
+            <button class="assign-toggle-btn" id="btn-manager-${inc.id}"
+              onclick="setAssignee('${inc.id}','manager')">👔 Manager</button>
+          </div>
+        </div>
+        <button class="btn-action btn-whatsapp" style="width:100%"
+          onclick="generateForAssignee('${inc.id}')">
+          📲 Générer dans la session
+        </button>
+      </div>
+    `;
+  }
+
+  const photoHtml = inc.photoAfter
+    ? `<img src="${inc.photoAfter}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:12px;" alt="Photo après">`
+    : (inc.photoBefore
+    ? `<img src="${inc.photoBefore}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:12px;" alt="Photo avant">`
+    : '');
+
+  return `
+    <div class="incident-card status-${inc.status}">
+      <div class="incident-header">
+        <div>
+          <span class="incident-id">${inc.id} · ${inc.date}</span>
+          ${inc.time ? `<span style="font-size:10px;color:var(--gray-2);margin-left:6px;">🕐 ${inc.time}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${inc.priority === 'high' ? '<span class="priority-badge priority-high">🔴 URGENT</span>' : ''}
+          <span class="incident-badge ${badge}">${label}</span>
+          <button onclick="event.stopPropagation();deleteIncident('${inc.id}')"
+            style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:16px;padding:2px 4px;line-height:1;"
+            title="Supprimer ce dossier">🗑️</button>
+        </div>
+      </div>
+      <div class="incident-title">${inc.equipment || 'Équipement non précisé'}</div>
+      <div class="incident-sub">${inc.building || '—'}</div>
+      <div class="incident-meta">
+        <div class="meta-item">📍 <strong>${inc.area || '—'}</strong></div>
+        ${inc.problem ? `<div class="meta-item">⚠️ <strong>${inc.problem.substring(0,40)}${inc.problem.length>40?'…':''}</strong></div>` : ''}
+      </div>
+      ${photoHtml}
+      ${devisHtml}
+      ${actionsHtml}
+    </div>
+  `;
+}
+
+function filterTab(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAdminDashboard();
+}
+
+// ── Gestion assignation RAZ/Manager ──
+const assigneeMap = {}; // { incidentId: 'raz' | 'manager' }
+
+function setAssignee(id, assignee) {
+  assigneeMap[id] = assignee;
+  // Visual feedback
+  const razBtn = document.getElementById('btn-raz-' + id);
+  const mgrBtn = document.getElementById('btn-manager-' + id);
+  if (razBtn && mgrBtn) {
+    razBtn.classList.toggle('active', assignee === 'raz');
+    mgrBtn.classList.toggle('active', assignee === 'manager');
   }
 }
 
-/* ────────────────────────────────────────────────
-   PDF GENERATION — fond blanc, photo ratio correct
-──────────────────────────────────────────────── */
-async function generatePDF() {
+function generateForAssignee(id) {
+  const assignee = assigneeMap[id] || 'raz';
+  // Sauvegarder l'assignation dans l'incident
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === id);
+  if (idx !== -1) {
+    incidents[idx].assignedTo = assignee;
+    saveIncidents(incidents);
+  }
+  sendWhatsApp(id, 'assign', assignee);
+}
+
+function approveIncident(id) {
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  incidents[idx].status = 'done';
+  incidents[idx].approvedAt = new Date().toLocaleDateString('fr-FR');
+  saveIncidents(incidents);
+  showToast('✅ Intervention approuvée — À valider !', 'success');
+  renderAdminDashboard();
+}
+
+function markToComplete(id) {
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  incidents[idx].status = 'tocomplete';
+  saveIncidents(incidents);
+  showToast('🔵 Marqué comme À compléter', '');
+  renderAdminDashboard();
+}
+
+function deleteIncident(id) {
+  if (!confirm('Supprimer définitivement ce dossier ?')) return;
+  const incidents = getIncidents();
+  const filtered = incidents.filter(i => i.id !== id);
+  saveIncidents(filtered);
+  showToast('🗑️ Dossier supprimé', '');
+  renderAdminDashboard();
+}
+
+function generateDevisPDF(id) {
+  const incidents = getIncidents();
+  const inc = incidents.find(i => i.id === id);
+  if (!inc) return;
+
+  if (!window.jspdf) { showToast('jsPDF non chargé', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4', putOnlyUsedFonts:true });
-  const W = 210, H = 297;
-  const margin = 16;
-  const contentW = W - margin * 2;
-  let y = 0;
+  const W=210, H=297;
+  const margin=18;
+  let y=0;
 
-  // ── Fond BLANC total
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, W, H, 'F');
+  // ── Fond blanc
+  doc.setFillColor(255,255,255); doc.rect(0,0,W,H,'F');
 
-  // ── Header blanc avec bordure bottom gris clair (comme la photo)
-  doc.setDrawColor(220, 225, 235);
+  // ══ HEADER ══
+  const headerH = 32;
+
+  // Logo PROLIFIC gauche (P cyan + ROLIFIC)
+  doc.setFillColor(0,200,240);
+  doc.roundedRect(margin, 8, 6, 18, 1.5, 1.5, 'F');
+  doc.roundedRect(margin, 8, 14, 9, 2, 2, 'F');
+  doc.setFillColor(255,255,255); doc.roundedRect(margin+6, 10, 6, 5, 1, 1, 'F');
+  doc.setFillColor(0,200,240); doc.triangle(margin, 22, margin-2, 28, margin+5, 24, 'F');
+  doc.setTextColor(13,14,43); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('ROLIFIC', margin+16, 21);
+
+  // Centre : ISSUE REPORTED + date
+  const issueNum = inc.issueNum || inc.id;
+  doc.setTextColor(0,180,220); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('ISSUE REPORTED #' + issueNum, W/2, 13, {align:'center'});
+  doc.setTextColor(13,14,43); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  const dateStr = inc.date || new Date().toLocaleDateString('fr-FR');
+  const timeStr = inc.time || new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  doc.text(dateStr.replace(/\//g, '/') + '  ' + timeStr, W/2, 21, {align:'center'});
+
+  // Logo API droite
+  const apiX = W - margin - 42;
+  const apiY = 7;
+  const apiH2 = 18;
+  const apiSW = 14;
+  doc.setFillColor(44,52,84); doc.rect(apiX, apiY, apiSW, apiH2, 'F');
+  doc.setDrawColor(200,98,42); doc.setLineWidth(0.8);
+  doc.rect(apiX+3, apiY+7, 8, 9);
+  doc.line(apiX+2, apiY+7, apiX+7, apiY+3);
+  doc.line(apiX+7, apiY+3, apiX+12, apiY+7);
   doc.setLineWidth(0.5);
-  doc.line(0, 28, W, 28);
+  doc.rect(apiX+4, apiY+8, 2.5, 3);
+  doc.rect(apiX+7.5, apiY+8, 2.5, 3);
+  doc.rect(apiX+5.5, apiY+13, 3, 3);
+  doc.setFillColor(240,234,216); doc.rect(apiX+apiSW, apiY, 28, apiH2, 'F');
+  doc.setTextColor(44,52,84); doc.setFontSize(14); doc.setFont('times','bold');
+  doc.text('API', apiX+apiSW+14, apiY+12, {align:'center'});
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
-  const timeStr = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  // Ligne sous header
+  y = headerH + 2;
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
+  doc.line(margin, y, W-margin, y);
+  y += 6;
 
-  // ══════════════════════════════════════════
-  // HEADER PDF — reproduit fidèlement les logos
-  // ══════════════════════════════════════════
+  // ══ TABLEAU MÉTADONNÉES (3 colonnes × 3 lignes) ══
+  const col1 = margin;
+  const col2 = margin + 58;
+  const col3 = margin + 116;
+  const rowH = 12;
+  const labelColor = [100, 100, 120];
+  const valueColor = [13, 14, 43];
 
-  // ── LOGO PROLIFIC gauche ──
-  // "P" cyan stylisé (forme bec)
-  const pX = margin, pY = 6, pS = 16; // position et taille
+  const meta = [
+    [
+      ['Building:', (inc.building||'—').replace(/\s*\(.*\)\s*/g,'').trim()],
+      ['Equipment:', inc.equipment||'—'],
+      ['Date of Issue:', inc.date||'—'],
+    ],
+    [
+      ['Property Code:', inc.ref ? inc.ref.split('-')[1] || '—' : '—'],
+      ['Brand:', inc.brand||'—'],
+      ['Reported by:', inc.reporter||'—'],
+    ],
+    [
+      ['Area Number:', (inc.area||'—').replace(/\s*—.*/, '').trim()],
+      ['Internal Ref.:', inc.ref||'—'],
+      ['Category:', 'Tenant'],
+    ],
+  ];
 
-  // Corps du P en cyan
-  doc.setFillColor(0, 200, 240);
-  // Forme simplifiée du P : rectangle + demi-cercle droit
-  doc.roundedRect(pX, pY, 5, pS, 1, 1, 'F');          // jambe verticale
-  doc.roundedRect(pX, pY, 12, 8, 2, 2, 'F');            // bosse haute
-  // Trou intérieur du P en marine
-  doc.setFillColor(13, 14, 43);
-  doc.roundedRect(pX + 5, pY + 2, 5, 4, 1, 1, 'F');
-  // Queue du P (bec courbé bas-gauche)
-  doc.setFillColor(0, 200, 240);
-  doc.triangle(pX, pY + pS - 2, pX - 2, pY + pS + 3, pX + 4, pY + pS, 'F');
+  meta.forEach((row, ri) => {
+    row.forEach((cell, ci) => {
+      const cx = [col1, col2, col3][ci];
+      const cy = y + ri * rowH;
 
-  // "ROLIFIC" en noir gras
-  doc.setTextColor(13, 14, 43);
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.text('ROLIFIC', pX + 14, pY + 12);
+      // Label
+      doc.setTextColor(...labelColor);
+      doc.setFontSize(8); doc.setFont('helvetica','normal');
+      doc.text(cell[0], cx, cy);
 
-  // ── CENTRE : Report ID + date/heure en cyan ──
-  const reportId = 'MAINTENANCE REPORT #' + Math.floor(10000000 + Math.random() * 89999999);
-  doc.setTextColor(0, 180, 220);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text(reportId, W / 2, 11, { align: 'center' });
-  doc.setFontSize(8);
-  doc.text(dateStr + '  ' + timeStr, W / 2, 19, { align: 'center' });
+      // Valeur en gras
+      doc.setTextColor(...valueColor);
+      doc.setFont('helvetica','bold');
+      doc.text(String(cell[1]).substring(0,24), cx + 22, cy);
 
-  // ── LOGO API droite ──
-  const apiLogoX = W - margin - 42;
-  const apiLogoY = 5;
-  const apiH = 18;
-  const apiSquareW = 14;
+      // Ligne sous chaque cellule
+      doc.setDrawColor(0,200,240); doc.setLineWidth(0.4);
+      doc.line(cx, cy + 3, cx + 54, cy + 3);
+    });
+  });
 
-  // Carré marine foncé
-  doc.setFillColor(44, 52, 84);
-  doc.rect(apiLogoX, apiLogoY, apiSquareW, apiH, 'F');
+  y += 3 * rowH + 6;
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
+  doc.line(margin, y, W-margin, y);
+  y += 4;
 
-  // Bâtiment orangé dans le carré
-  doc.setDrawColor(200, 98, 42);
-  doc.setLineWidth(0.8);
-  // Corps
-  doc.rect(apiLogoX + 3, apiLogoY + 7, 8, 9);
-  // Toit triangulaire
-  doc.line(apiLogoX + 2, apiLogoY + 7, apiLogoX + 7, apiLogoY + 3);
-  doc.line(apiLogoX + 7, apiLogoY + 3, apiLogoX + 12, apiLogoY + 7);
-  // Fenêtres
-  doc.setLineWidth(0.5);
-  doc.rect(apiLogoX + 4, apiLogoY + 8, 2.5, 3);
-  doc.rect(apiLogoX + 7.5, apiLogoY + 8, 2.5, 3);
-  // Porte
-  doc.rect(apiLogoX + 5.5, apiLogoY + 13, 3, 3);
+  // ══ SECTION PHOTO + DESCRIPTION ══
+  const sectionH = H - y - 20;
+  const photoW = 62;
+  const descW = W - margin*2 - photoW - 4;
 
-  // Zone beige/crème pour "API"
-  doc.setFillColor(240, 234, 216);
-  doc.rect(apiLogoX + apiSquareW, apiLogoY, 28, apiH, 'F');
+  // Header PHOTO (cyan)
+  doc.setFillColor(0,200,240);
+  doc.rect(margin, y, photoW, 8, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('PHOTO', margin + photoW/2, y + 5.5, {align:'center'});
 
-  // Texte "API" en serif marine
-  doc.setTextColor(44, 52, 84);
-  doc.setFontSize(13);
-  doc.setFont('times', 'bold');
-  doc.text('API', apiLogoX + apiSquareW + 14, apiLogoY + 12.5, { align: 'center' });
+  // Header DESCRIPTION (cyan)
+  doc.setFillColor(0,200,240);
+  doc.rect(margin + photoW + 4, y, descW, 8, 'F');
+  doc.setTextColor(255,255,255);
+  doc.text('DESCRIPTION', margin + photoW + 4 + descW/2, y + 5.5, {align:'center'});
 
-  y = 36;
-
-  // ── Fine ligne séparatrice cyan sous le header
-  doc.setDrawColor(0, 200, 240);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, W - margin, y);
   y += 8;
 
-  // ── Helper : bloc section sur fond blanc avec bordure cyan à gauche
-  function section(title, lines) {
-    const rowH = 8;
-    const titleH = 8;
-    const blockH = titleH + lines.length * rowH + 4;
+  // Bordures sections
+  const remainH = H - y - 20;
+  doc.setDrawColor(180,200,220); doc.setLineWidth(0.4);
+  doc.rect(margin, y, photoW, remainH);
+  doc.rect(margin + photoW + 4, y, descW, remainH);
 
-    // Bande latérale cyan (3mm)
-    doc.setFillColor(0, 200, 240);
-    doc.rect(margin, y, 3, blockH, 'F');
-
-    // Fond blanc pur
-    doc.setFillColor(255, 255, 255);
-    doc.rect(margin + 3, y, contentW - 3, blockH, 'F');
-
-    // Titre section
-    doc.setTextColor(0, 160, 200);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','bold');
-    doc.text(title.toUpperCase(), margin + 7, y + 5.5);
-
-    y += titleH;
-
-    // Lignes label : valeur
-    lines.forEach(([k, v]) => {
-      doc.setFont('helvetica','bold');
-      doc.setFontSize(9);
-      doc.setTextColor(90, 90, 110);
-      doc.text(k + ' :', margin + 7, y + 5.5);
-
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(20, 20, 40);
-      // Truncate long values
-      const valStr = String(v || '—');
-      const split = doc.splitTextToSize(valStr, contentW - 55);
-      doc.text(split[0] || '—', margin + 52, y + 5.5);
-      y += rowH;
-    });
-    y += 6;
+  // Photo si disponible
+  if (inc.photoBefore) {
+    try {
+      const imgY = y + 4;
+      const imgW = photoW - 8;
+      const imgH = Math.min(remainH - 8, 60);
+      doc.addImage(inc.photoBefore, 'JPEG', margin + 4, imgY, imgW, imgH);
+    } catch(e) {}
   }
 
-  section('Localisation', [
-    ['Zone (Area)', state.area ? state.area.replace(/\s*\(.*\)\s*/g,'').trim() : '—'],
-    ['Bâtiment',   state.building ? state.building.replace(/\s*\(.*\)\s*/g,'').trim() : '—'],
-  ]);
-
-  section('Équipement', [
-    ['Type', state.equipment || '—'],
-    ['Statut', state.status || '—'],
-    ['Référence', state.reference || '—'],
-  ]);
-
-  // ── Fichier PDF joint : afficher nom + icône
-  if (state.attachedFileName && state.attachedFileType === 'pdf') {
-    const blockH = 18;
-    doc.setFillColor(0, 200, 240);
-    doc.rect(margin, y, 3, blockH, 'F');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(margin + 3, y, contentW - 3, blockH, 'F');
-    doc.setTextColor(0, 160, 200);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','bold');
-    doc.text('FICHIER JOINT', margin + 7, y + 5.5);
-    // Icône PDF rouge
-    doc.setFillColor(220, 38, 38);
-    doc.roundedRect(margin + 7, y + 7, 10, 7, 1, 1, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFontSize(6);
-    doc.setFont('helvetica','bold');
-    doc.text('PDF', margin + 9, y + 12);
-    // Nom du fichier
-    doc.setTextColor(30, 30, 60);
-    doc.setFontSize(9);
-    doc.setFont('helvetica','normal');
-    const splitName = doc.splitTextToSize(state.attachedFileName, contentW - 30);
-    doc.text(splitName[0], margin + 20, y + 12);
-    y += blockH + 6;
+  // Description
+  if (inc.problem) {
+    doc.setTextColor(60,60,80); doc.setFontSize(9); doc.setFont('helvetica','normal');
+    const descLines = doc.splitTextToSize(inc.problem, descW - 8);
+    const descY = y + remainH/2 - (descLines.length * 4.5)/2;
+    doc.text(descLines, margin + photoW + 8, descY);
   }
 
-  // ── Notes
-  if (state.notes) {
-    const splitNotes = doc.splitTextToSize(state.notes, contentW - 10);
-    const blockH = 8 + splitNotes.length * 5.5 + 5;
+  // ══ FOOTER ══
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3);
+  doc.line(margin, H-16, W-margin, H-16);
+  doc.setTextColor(160,160,170); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('Issue_ID_CODE_DATE_V001', margin, H-10);
 
-    doc.setFillColor(0, 200, 240);
-    doc.rect(margin, y, 3, blockH, 'F');
-    doc.setFillColor(255, 255, 255);
-    doc.rect(margin + 3, y, contentW - 3, blockH, 'F');
+  const filename = 'Issue_' + issueNum + '_' + (inc.ref||inc.id) + '_' + (inc.date||'').replace(/\//g,'-') + '.pdf';
+  doc.save(filename);
+  showToast('✅ PDF généré !', 'success');
+}
 
-    doc.setTextColor(0, 160, 200);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','bold');
-    doc.text('COMMENTAIRES & NOTES', margin + 7, y + 5.5);
-    y += 8;
+function sendDevisEmail(id) {
+  const incidents = getIncidents();
+  const inc = incidents.find(i => i.id === id);
+  if (!inc) return;
+  const total = inc.devis ? inc.devis.reduce((s,d) => s+(parseFloat(d.cost)||0), 0) : 0;
+  const devisLines = (inc.devis||[]).map(d => `- ${d.description} : ${d.cost} AED`).join('\n');
+  const bodyText = [
+    `Bonjour,`,
+    ``,
+    `Veuillez trouver ci-dessous le devis pour l\'intervention suivante :`,
+    ``,
+    `Reference : ${inc.id}`,
+    `Batiment : ${inc.building||'—'}`,
+    `Equipement : ${inc.equipment||'—'}`,
+    `Probleme : ${inc.problem||'—'}`,
+    ``,
+    `ESTIMATION DES TRAVAUX :`,
+    devisLines,
+    `TOTAL : ${total} AED`,
+    inc.delay ? `Delai estime : ${inc.delay}` : '',
+    ``,
+    `Cordialement,`,
+    `PROLIFIC`
+  ].join('\n');
+  const subject = encodeURIComponent(`Devis Intervention ${inc.id} — ${inc.building||''}`);
+  window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(bodyText)}`;
+  showToast('📧 Ouverture email...', '');
+}
 
-    doc.setTextColor(20, 20, 40);
-    doc.setFontSize(9);
-    doc.setFont('helvetica','normal');
-    doc.text(splitNotes, margin + 7, y + 5);
-    y += splitNotes.length * 5.5 + 8;
+
+function closeIncident(id) {
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  incidents[idx].status = 'closed';
+  incidents[idx].closedAt = new Date().toLocaleDateString('fr-FR');
+  saveIncidents(incidents);
+  showToast('🏁 Dossier clôturé !', 'success');
+  renderAdminDashboard();
+}
+
+// ── Édition admin du devis envoyé par RAZ ──
+function openAdminEditForm(id) {
+  currentIncidentId = id;
+  const incidents = getIncidents();
+  const inc = incidents.find(i => i.id === id);
+  if (!inc) return;
+
+  devisRows = inc.devis && inc.devis.length > 0
+    ? [...inc.devis]
+    : [{ description: '', cost: '' }];
+
+  document.getElementById('formScreenTitle').innerHTML = 'Modifier<span>le Devis</span>';
+  showScreen('form');
+  renderPhaseIndicator(1, 1);
+
+  document.getElementById('formContent').innerHTML = `
+    <div class="form-card" style="border-left:4px solid var(--cyan);">
+      <div class="form-card-title">📋 Dossier — ${inc.id}</div>
+      <div class="incident-meta" style="margin-bottom:0">
+        <div class="meta-item">📍 <strong>${inc.building || '—'}</strong></div>
+        <div class="meta-item">🔧 <strong>${inc.equipment || '—'}</strong></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">🔍 Diagnostic de RAZ</div>
+      <div class="field">
+        <label>Description des travaux</label>
+        <textarea id="ae_diagnostic" style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:12px;width:100%;font-size:14px;font-family:var(--font);min-height:90px;outline:none;">${inc.diagnostic || ''}</textarea>
+      </div>
+      <div class="field">
+        <label>Délai d'exécution</label>
+        <input type="text" id="ae_delay" value="${inc.delay || ''}"
+          style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:11px 14px;width:100%;font-size:14px;font-family:var(--font);outline:none;">
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">💰 Modifier le devis</div>
+      <div class="devis-builder" id="devisBuilder"></div>
+      <div class="devis-total-bar" id="devisTotal">
+        <span>Total estimé</span>
+        <strong>0 AED</strong>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="saveAdminEdit()">
+      💾 Enregistrer les modifications
+    </button>
+    <button class="btn-back" onclick="showScreen('admin');renderAdminDashboard();">← Annuler</button>
+  `;
+
+  renderDevisBuilder();
+}
+
+function saveAdminEdit() {
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === currentIncidentId);
+  if (idx === -1) return;
+
+  incidents[idx].diagnostic = document.getElementById('ae_diagnostic').value;
+  incidents[idx].delay = document.getElementById('ae_delay').value;
+  incidents[idx].devis = devisRows.filter(r => r.description);
+  saveIncidents(incidents);
+
+  showToast('✅ Devis modifié avec succès !', 'success');
+  setTimeout(() => { showScreen('admin'); renderAdminDashboard(); }, 800);
+}
+
+function sendWhatsApp(id, type, assignee = null) {
+  const incidents = getIncidents();
+  const inc = incidents.find(i => i.id === id);
+  if (!inc) return;
+  const targetName = assignee === 'manager' ? 'Manager' : 'RAZ';
+
+  let msg = '';
+  if (type === 'approve') {
+    const total = inc.devis ? inc.devis.reduce((s, d) => s + (parseFloat(d.cost) || 0), 0) : 0;
+    msg = `✅ *GO — Intervention Approuvée*\n\n`
+      + `📋 Ref : ${inc.id}\n`
+      + `📍 Bâtiment : ${inc.building || '—'}\n`
+      + `🔧 Équipement : ${inc.equipment || '—'}\n`
+      + `💰 Budget approuvé : ${total} AED\n`
+      + `⏱ Délai : ${inc.delay || 'À définir'}\n\n`
+      + `Vous pouvez commencer les travaux. Merci !`;
+  } else {
+    const prioLabel = inc.priority === 'high' ? '🔴 URGENT' : (inc.priority === 'medium' ? '🟡 Moyen' : '⚪ Normal');
+    msg = `📋 *Nouvelle Intervention PROLIFIC*\n`
+      + `👤 Assignée à : ${targetName || (inc.assignedTo === 'manager' ? 'Manager' : 'RAZ')}\n`
+      + `Priorité : ${prioLabel}\n\n`
+      + `Ref : ${inc.id}\n`
+      + `📍 ${inc.building || '—'} — ${inc.area || '—'}\n`
+      + `🔧 Équipement : ${inc.equipment || '—'}\n`
+      + (inc.brand ? `🏷 Marque : ${inc.brand}\n` : '')
+      + (inc.ref ? `🔑 Réf interne : ${inc.ref}\n` : '')
+      + `⚠️ Problème : ${inc.problem || '—'}\n`
+      + (inc.reporter ? `👤 Signalé par : ${inc.reporter}\n` : '')
+      + `\nMerci de vous rendre sur place pour le diagnostic.`;
   }
 
-  // ── Photo — RATIO CORRECT, pas d'étirement
-  if (state.photoDataURL) {
-    // Charger l'image dans un canvas pour lire ses dimensions réelles
-    await new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        const naturalW = img.naturalWidth;
-        const naturalH = img.naturalHeight;
-        const aspectRatio = naturalH / naturalW; // ratio h/w
+  const encoded = encodeURIComponent(msg);
+  const url = RAZ_WHATSAPP
+    ? `https://wa.me/${RAZ_WHATSAPP}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+  window.open(url, '_blank');
+}
 
-        // Largeur max disponible dans le PDF
-        const maxImgW = contentW - 6;
-        // Hauteur calculée selon le vrai ratio, plafonnée à 90mm
-        const maxAllowedH = Math.min(H - y - 30, 90);
-        let imgW = maxImgW;
-        let imgH = imgW * aspectRatio;
-        if (imgH > maxAllowedH) {
-          imgH = maxAllowedH;
-          imgW = imgH / aspectRatio;
-        }
+/* ══════════════════════════════════════════════
+   TECH DASHBOARD
+══════════════════════════════════════════════ */
+function renderTechDashboard() {
+  const incidents = getIncidents();
+  // Filtrer selon le profil connecté (RAZ ou Manager)
+  const active = incidents.filter(i =>
+    ['pending','diagnostic','approved','done'].includes(i.status) &&
+    (i.assignedTo === currentTechProfile || !i.assignedTo)
+  );
 
-        const blockH = 10 + imgH + 5;
+  // Nom dynamique
+  const nameEl = document.getElementById('techWelcomeName');
+  if (nameEl) nameEl.textContent = currentTechProfile === 'manager' ? '👋 Bonjour, Manager' : '👋 Bonjour, RAZ';
 
-        // Bloc photo
-        doc.setFillColor(0, 200, 240);
-        doc.rect(margin, y, 3, blockH, 'F');
-        doc.setFillColor(255, 255, 255);
-        doc.rect(margin + 3, y, contentW - 3, blockH, 'F');
-
-        doc.setTextColor(0, 160, 200);
-        doc.setFontSize(8);
-        doc.setFont('helvetica','bold');
-        doc.text('PHOTO', margin + 7, y + 6);
-        y += 10;
-
-        // Centrer la photo horizontalement
-        const imgX = margin + 3 + ((contentW - 3) - imgW) / 2;
-        try {
-          doc.addImage(state.photoDataURL, 'JPEG', imgX, y, imgW, imgH);
-        } catch(e) { console.error('Photo PDF error:', e); }
-
-        y += imgH + 8;
-        resolve();
-      };
-      img.src = state.photoDataURL;
-    });
+  const count = document.getElementById('techTaskCount');
+  if (active.length === 0) {
+    count.textContent = '✅ Aucune intervention en cours';
+  } else {
+    count.textContent = `${active.length} intervention${active.length > 1 ? 's' : ''} en cours`;
   }
 
-  // ── Footer CYAN
-  doc.setFillColor(0, 200, 240);
-  doc.rect(0, H - 12, W, 12, 'F');
-  doc.setTextColor(13, 14, 43);
-  doc.setFontSize(7);
-  doc.setFont('helvetica','bold');
-  doc.text('PROLIFIC', margin, H - 4.5);
-  doc.setFont('helvetica','normal');
-  doc.text('Rapport généré automatiquement', margin + 18, H - 4.5);
-  doc.text('Page 1 / 1', W - margin, H - 4.5, { align:'right' });
+  const list = document.getElementById('techIncidentsList');
 
-  // ── Filename : [Bâtiment] - [Équipement] - [Statut] - [Référence]
-  const cleanPart = (str, fallback) => {
-    const val = (str || fallback || '').toString()
-      .replace(/\s*\(.*\)\s*/g, '')   // retire "(28 équipements)" etc.
-      .trim()
-      .replace(/[\\/:*?"<>|]/g, '')   // caractères interdits dans un nom de fichier
-      .replace(/\s+/g, '-')
-      .substring(0, 30);
-    return val || fallback;
+  if (active.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div>🎉</div><p>Tout est à jour, bravo !</p></div>`;
+    return;
+  }
+
+  // Trier : URGENT d'abord, puis GO, puis le reste
+  active.sort((a, b) => {
+    const prioOrder = { high: 0, medium: 1, normal: 2 };
+    const statusOrder = { approved: 0, pending: 1, diagnostic: 2, done: 3 };
+    const prioA = prioOrder[a.priority] ?? 2;
+    const prioB = prioOrder[b.priority] ?? 2;
+    if (prioA !== prioB) return prioA - prioB;
+    return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+  });
+
+  const urgentCount = active.filter(i => i.priority === 'high').length;
+  const goCount = active.filter(i => i.status === 'approved').length;
+
+  let html = '';
+
+  // Banner urgent si nécessaire
+  if (urgentCount > 0) {
+    html += `<div class="urgent-banner">🚨 ${urgentCount} intervention${urgentCount>1?'s':''} URGENTE${urgentCount>1?'S':''} — Traiter en priorité !</div>`;
+  }
+  if (goCount > 0) {
+    html += `<div style="background:#DCFCE7;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--success);">✅ ${goCount} intervention${goCount>1?'s':''} approuvée${goCount>1?'s':''} — GO !</div>`;
+  }
+
+  html += active.map(inc => {
+    const phases = ['Signalement', 'Diagnostic', 'Approuvé', 'Terminé'];
+    const phaseIdx = { pending:0, diagnostic:1, approved:2, done:3 }[inc.status] || 0;
+    const isGo = inc.status === 'approved';
+    const isUrgent = inc.priority === 'high';
+
+    const prioHtml = isUrgent
+      ? '<span class="priority-badge priority-high">🔴 URGENT</span>'
+      : (inc.priority === 'medium'
+        ? '<span class="priority-badge priority-medium">🟡 Moyen</span>'
+        : '<span class="priority-badge priority-normal">⚪ Normal</span>');
+
+    return `
+      <div class="tech-task-card ${isGo ? 'approved' : ''} ${isUrgent ? 'urgent' : ''}"
+           onclick="openTechForm('${inc.id}')"
+           style="${isUrgent ? 'border-left-color:var(--danger);' : ''}">
+        <div class="task-header">
+          <div>
+            <span style="font-size:11px;color:var(--gray-2);font-weight:600;">${inc.id} ${prioHtml}</span>
+            <div style="font-size:10px;color:var(--gray-2);margin-top:2px;">
+              📅 ${inc.date || '—'} ${inc.time ? '· ' + inc.time : ''}
+            </div>
+          </div>
+          <span class="task-phase ${isGo ? 'go' : (inc.status==='diagnostic'?'diag':'')}">${isGo ? '🟢 GO !' : (inc.status==='diagnostic'?'⏳ Devis':'📋 À faire')}</span>
+        </div>
+        <div class="task-title">${inc.equipment || 'Équipement'}</div>
+        <div class="task-sub">${inc.building || '—'}</div>
+        ${inc.ref ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:8px;">Réf: ${inc.ref}</div>` : ''}
+        <div class="task-progress">
+          ${phases.map((p, i) => `<div class="progress-step ${i < phaseIdx ? 'done' : (i === phaseIdx ? 'active' : '')}"></div>`).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════
+   FORMULAIRE DYNAMIQUE
+══════════════════════════════════════════════ */
+const PHASES = ['Signalement', 'Diagnostic & Devis', 'Photo finale'];
+
+function renderPhaseIndicator(activePhase, maxPhase) {
+  const steps = document.getElementById('phaseSteps');
+  let html = '';
+  PHASES.forEach((p, i) => {
+    const isDone = i < activePhase;
+    const isActive = i === activePhase;
+    const isReachable = i <= maxPhase;
+
+    if (i > 0) html += `<div class="phase-line ${isDone ? 'done' : ''}"></div>`;
+    html += `
+      <div class="phase-step">
+        <div class="phase-dot ${isDone ? 'done' : (isActive ? 'active' : '')}">${isDone ? '✓' : (i+1)}</div>
+        <div class="phase-label ${isActive ? 'active' : ''}">${p}</div>
+      </div>
+    `;
+  });
+  steps.innerHTML = html;
+}
+
+// ── NOUVEAU INCIDENT (Admin) ──
+function openNewIncident() {
+  currentIncidentId = null;
+  currentFormPhase = 0;
+  formPhotoDataURL = null;
+  devisRows = [{ description: '', cost: '' }];
+  document.getElementById('formScreenTitle').innerHTML = 'Nouveau<span>Signalement</span>';
+  showScreen('form');
+  renderPhase0();
+}
+
+function renderPhase0() {
+  renderPhaseIndicator(0, 0);
+
+  const areaOptions = AREAS_DATA.map(a =>
+    `<option value="${a.label}">${a.label}</option>`
+  ).join('');
+
+  document.getElementById('formContent').innerHTML = `
+
+    <!-- ── IMPORT PDF ── -->
+    <div class="form-card">
+      <div class="form-card-title">📄 Import PDF (optionnel)</div>
+
+      <label for="pdfFileInput" class="pdf-import-zone" id="pdfImportZone">
+        <div class="pdf-icon">📄</div>
+        <div class="pdf-text">
+          <p>Importer un PDF PROLIFIC</p>
+          <small>Pré-remplissage automatique de tous les champs</small>
+        </div>
+      </label>
+      <input type="file" id="pdfFileInput" accept="application/pdf">
+
+      <div class="parsing-loader" id="parsingLoader">
+        ⏳ Analyse du PDF en cours…
+      </div>
+
+      <div class="pdf-extracted" id="pdfExtracted" style="display:none">
+        <div class="pdf-extracted-title">✅ Données extraites du PDF</div>
+        <div id="pdfExtractedFields"></div>
+      </div>
+    </div>
+
+    <!-- ── LOCALISATION ── -->
+    <div class="form-card">
+      <div class="form-card-title">📍 Localisation</div>
+      <div class="field">
+        <label>Zone (Area)</label>
+        <select id="f_area" onchange="updateBuildingDropdown(this.value)">
+          <option value="">— Sélectionner une zone —</option>
+          ${areaOptions}
+        </select>
+      </div>
+      <div class="field">
+        <label>Bâtiment</label>
+        <select id="f_building" disabled>
+          <option value="">— Sélectionnez d'abord une zone —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── ÉQUIPEMENT ── -->
+    <div class="form-card">
+      <div class="form-card-title">🔧 Équipement & Problème</div>
+      <div class="field">
+        <label>Équipement</label>
+        <input type="text" id="f_equipment" placeholder="Ex : Treadmill, Lat Pulldown…">
+      </div>
+      <div class="field">
+        <label>Marque (Brand)</label>
+        <input type="text" id="f_brand" placeholder="Ex : Life Fitness, Technogym…">
+      </div>
+      <div class="field">
+        <label>Référence interne</label>
+        <input type="text" id="f_ref" placeholder="Ex : API-326-STM-002">
+      </div>
+      <div class="field">
+        <label>Description du problème</label>
+        <textarea id="f_problem" placeholder="Décrivez l'anomalie constatée…"></textarea>
+      </div>
+      <div class="field">
+        <label>Signalé par</label>
+        <input type="text" id="f_reporter" placeholder="Ex : Meenakshi">
+      </div>
+    </div>
+
+    <!-- ── PRIORITÉ ── -->
+    <div class="form-card">
+      <div class="form-card-title">🚨 Priorité</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-priority" id="prio-normal" onclick="setPriority('normal')">⚪ Normal</button>
+        <button class="btn-priority" id="prio-medium" onclick="setPriority('medium')">🟡 Moyen</button>
+        <button class="btn-priority active" id="prio-high" onclick="setPriority('high')">🔴 URGENT</button>
+      </div>
+    </div>
+
+    <!-- ── PHOTO ── -->
+    <div class="form-card">
+      <div class="form-card-title">📷 Photo du problème</div>
+      <label for="cameraInputForm" class="btn-camera">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        Prendre / choisir une photo
+      </label>
+      <input type="file" id="cameraInputForm" accept="image/*">
+      <div class="photo-thumb" id="photoThumb0">
+        <img id="photoImg0" src="" alt="">
+        <button class="remove-btn" onclick="removePhoto(0)">✕</button>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="submitPhase0()">
+      📲 Générer dans la session de RAZ
+    </button>
+  `;
+
+  // PDF import listener
+  document.getElementById('pdfFileInput').addEventListener('change', function() {
+    parsePDF(this.files[0]);
+  });
+
+  // Camera listener
+  document.getElementById('cameraInputForm').addEventListener('change', function() {
+    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
+  });
+
+  // Priorité par défaut : high
+  currentPriority = 'high';
+}
+
+// ── Priorité ──
+let currentPriority = 'high';
+function setPriority(level) {
+  currentPriority = level;
+  ['normal','medium','high'].forEach(l => {
+    const btn = document.getElementById('prio-' + l);
+    if (btn) btn.classList.toggle('active', l === level);
+  });
+}
+
+// ── Parser PDF PROLIFIC ──
+async function parsePDF(file) {
+  if (!file) return;
+
+  document.getElementById('parsingLoader').style.display = 'block';
+  document.getElementById('pdfExtracted').style.display = 'none';
+
+  try {
+    // Configurer PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    // Extraire tout le texte de toutes les pages
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+    }
+
+    // ── Parsing des champs selon la structure PROLIFIC ──
+    const extracted = parseProlificText(fullText);
+
+    document.getElementById('parsingLoader').style.display = 'none';
+
+    // Afficher le récap extrait
+    const fields = document.getElementById('pdfExtractedFields');
+    fields.innerHTML = Object.entries(extracted)
+      .filter(([k,v]) => v)
+      .map(([k,v]) => `
+        <div class="pdf-field-preview">
+          <span>${k}</span>
+          <strong>${String(v).substring(0,40)}</strong>
+        </div>
+      `).join('');
+    document.getElementById('pdfExtracted').style.display = 'block';
+
+    // ── Pré-remplir les champs du formulaire ──
+    prefillForm(extracted);
+
+    showToast('✅ PDF analysé — champs pré-remplis !', 'success');
+
+  } catch(e) {
+    document.getElementById('parsingLoader').style.display = 'none';
+    console.error('PDF parse error:', e);
+    showToast('⚠️ Erreur lecture PDF — remplissez manuellement', 'error');
+  }
+}
+
+function parseProlificText(text) {
+  // Nettoyer le texte
+  const t = text.replace(/\s+/g, ' ').trim();
+
+  // Fonctions helper pour extraire un champ
+  const extract = (patterns) => {
+    for (const pattern of patterns) {
+      const match = t.match(pattern);
+      if (match && match[1]) return match[1].trim();
+    }
+    return '';
   };
 
-  const buildPart  = cleanPart(state.building, 'Batiment');
-  const equipPart  = cleanPart(state.equipment, 'Equipement');
-  const statusPart = cleanPart(state.status, '');
-  const refPart    = cleanPart(state.reference, '');
+  const building = extract([
+    /Building[:\s]+([A-Za-z0-9\s]+?)(?:Equipment|Property|Area|$)/i,
+    /Building:\s*([^\n]+)/i
+  ]);
 
-  // Construction dynamique : on n'ajoute que les segments réellement remplis
-  const nameSegments = [buildPart, equipPart, statusPart, refPart].filter(Boolean);
-  const filename = nameSegments.join('-') + '.pdf';
+  const area = extract([
+    /Area Number[:\s]+(AREA\s*\d+)/i,
+    /Area[:\s]+(AREA\s*\d+)/i
+  ]);
 
-  return { doc, filename };
+  const equipment = extract([
+    /Equipment[:\s]+([A-Za-z\s]+?)(?:Date|Brand|Internal|$)/i,
+    /Equipment:\s*([^\n]+)/i
+  ]);
+
+  const brand = extract([
+    /Brand[:\s]+([A-Za-z\s]+?)(?:Internal|Reported|Category|$)/i,
+    /Brand:\s*([^\n]+)/i
+  ]);
+
+  const internalRef = extract([
+    /Internal Ref\.?[:\s]+([A-Z0-9-]+)/i,
+    /Ref\.?[:\s]+([A-Z0-9-]+)/i
+  ]);
+
+  const reporter = extract([
+    /Reported by[:\s]+([A-Za-z\s]+?)(?:Category|Date|$)/i,
+    /Reported by:\s*([^\n]+)/i
+  ]);
+
+  const issueNum = extract([
+    /ISSUE REPORTED #(\d+)/i,
+    /#(\d+)/
+  ]);
+
+  // Description : tout ce qui suit "DESCRIPTION" ou "Needs to"
+  const descMatch = t.match(/DESCRIPTION[\s\S]*?(Needs[^.]*\.?|[A-Z][^.]{10,100}\.)/i);
+  const description = descMatch ? descMatch[1].trim() : '';
+
+  return {
+    'Bâtiment': building,
+    'Zone': area,
+    'Équipement': equipment,
+    'Marque': brand,
+    'Référence': internalRef,
+    'Signalé par': reporter,
+    'Issue #': issueNum,
+    'Description': description,
+  };
 }
 
-/* ────────────────────────────────────────────────
-   BTN GENERATE PDF
-──────────────────────────────────────────────── */
-document.getElementById('btnPdf').addEventListener('click', async () => {
-  if (!state.area && !state.building && !state.equipment) {
-    showToast('⚠️ Veuillez remplir au moins un champ', 'error'); return;
-  }
-  try {
-    const { doc, filename } = await generatePDF();
-    doc.save(filename);
-    lastPdfBlob = doc.output('blob');
-    showToast('✅ PDF téléchargé : ' + filename, 'success');
-  } catch(e) {
-    showToast('❌ Erreur génération PDF', 'error');
-    console.error(e);
-  }
-});
+function prefillForm(data) {
+  // Bâtiment → chercher dans la liste des bâtiments
+  if (data['Bâtiment']) {
+    const bldg = data['Bâtiment'];
+    // Chercher la zone correspondante
+    let foundArea = null;
+    AREAS_DATA.forEach(a => {
+      a.buildings.forEach(b => {
+        if (b.toLowerCase().includes(bldg.toLowerCase()) ||
+            bldg.toLowerCase().includes(b.toLowerCase().replace('api ', '').replace('api-', ''))) {
+          foundArea = a.label;
+        }
+      });
+    });
 
-/* ────────────────────────────────────────────────
-   BTN SHARE
-──────────────────────────────────────────────── */
-document.getElementById('btnShare').addEventListener('click', async () => {
-  if (!state.area && !state.building && !state.equipment) {
-    showToast('⚠️ Veuillez remplir au moins un champ', 'error'); return;
-  }
-  const { doc, filename } = await generatePDF();
-  const blob = doc.output('blob');
-  lastPdfBlob = blob;
-  const file = new File([blob], filename, { type: 'application/pdf' });
-
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ title: 'Rapport PROLIFIC', files: [file] });
-      showToast('✅ Rapport partagé !', 'success');
-    } catch(e) {
-      if (e.name !== 'AbortError') fallbackDownload(blob, filename);
+    // Aussi matcher par numéro d'area
+    if (!foundArea && data['Zone']) {
+      const areaNum = data['Zone'].match(/\d+/);
+      if (areaNum) {
+        const found = AREAS_DATA.find(a => a.label.includes('AREA ' + areaNum[0]));
+        if (found) foundArea = found.label;
+      }
     }
-  } else {
-    fallbackDownload(blob, filename);
-  }
-});
 
-function fallbackDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 1000);
-  showToast('📥 PDF téléchargé (partage non supporté)', '');
+    if (foundArea) {
+      const areaSelect = document.getElementById('f_area');
+      if (areaSelect) {
+        areaSelect.value = foundArea;
+        updateBuildingDropdown(foundArea);
+        // Sélectionner le bâtiment dans la liste
+        setTimeout(() => {
+          const bldgSelect = document.getElementById('f_building');
+          if (bldgSelect) {
+            Array.from(bldgSelect.options).forEach(opt => {
+              if (opt.text.toLowerCase().includes(bldg.toLowerCase().substring(0,8))) {
+                bldgSelect.value = opt.value;
+              }
+            });
+          }
+        }, 100);
+      }
+    }
+  }
+
+  if (data['Équipement']) {
+    const el = document.getElementById('f_equipment');
+    if (el) el.value = data['Équipement'];
+  }
+  if (data['Marque']) {
+    const el = document.getElementById('f_brand');
+    if (el) el.value = data['Marque'];
+  }
+  if (data['Référence']) {
+    const el = document.getElementById('f_ref');
+    if (el) el.value = data['Référence'];
+  }
+  if (data['Description']) {
+    const el = document.getElementById('f_problem');
+    if (el) el.value = data['Description'];
+  }
+  if (data['Signalé par']) {
+    const el = document.getElementById('f_reporter');
+    if (el) el.value = data['Signalé par'];
+  }
 }
 
-/* ────────────────────────────────────────────────
-   BTN RESET
-──────────────────────────────────────────────── */
-document.getElementById('btnReset').addEventListener('click', () => {
-  state = { area:'', building:'', equipment:'', notes:'', photoDataURL:null, photoName:'', attachedFileName:null, attachedFileType:null, status:'', reference:'' };
-  areaDD.clear();
-  buildingDD.clear();
-  buildingDD.setItems([]);
-  equipDD.clear();
-  document.getElementById('equipDisplay').value = '';
-  document.getElementById('equipValue').value = '';
-  statusDD.clear();
-  document.getElementById('statusDisplay').value = '';
-  document.getElementById('statusValue').value = '';
-  document.getElementById('referenceInput').value = '';
-  document.getElementById('notesField').value = '';
-  document.getElementById('photoPreview').style.display = 'none';
-  document.getElementById('cameraInput').value = '';
-  document.getElementById('fileInput').value = '';
-  document.getElementById('fileBadge').style.display = 'none';
-  document.getElementById('buildingDisplay').placeholder = 'Sélectionnez d\'abord une zone…';
-  document.getElementById('summaryPreview').style.display = 'none';
-  updateStatus();
-  showToast('🔄 Formulaire réinitialisé');
-});
+function handlePhoto(file, thumbId, imgId) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > 1200) { h = h * 1200 / w; w = 1200; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      formPhotoDataURL = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById(imgId).src = formPhotoDataURL;
+      document.getElementById(thumbId).style.display = 'block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
-/* close dropdowns on outside click */
-document.addEventListener('click', e => {
-  ['areaWrap','buildingWrap','equipWrap','statusWrap'].forEach(id => {
-    const wrap = document.getElementById(id);
-    if (!wrap?.contains(e.target)) {
-      wrap?.querySelector('.dropdown-list')?.classList.remove('open');
-      wrap?.querySelector('.dropdown-arrow')?.classList.remove('open');
+function removePhoto(phase) {
+  formPhotoDataURL = null;
+  document.getElementById('photoThumb' + phase).style.display = 'none';
+}
+
+function submitPhase0() {
+  const area = document.getElementById('f_area').value;
+  const building = document.getElementById('f_building').value;
+  const equipment = document.getElementById('f_equipment').value;
+  const problem = document.getElementById('f_problem').value;
+  const brand = document.getElementById('f_brand')?.value || '';
+  const ref = document.getElementById('f_ref')?.value || '';
+  const reporter = document.getElementById('f_reporter')?.value || '';
+
+  if (!building || !equipment) {
+    showToast('⚠️ Bâtiment et équipement obligatoires', 'error');
+    return;
+  }
+
+  const incidents = getIncidents();
+  const newInc = {
+    id: genId(),
+    date: new Date().toLocaleDateString('fr-FR'),
+    time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}),
+    area, building, equipment, problem,
+    brand, ref, reporter,
+    priority: currentPriority || 'normal',
+    photoBefore: formPhotoDataURL,
+    status: 'pending',
+    devis: [],
+    delay: '',
+    diagnostic: '',
+    photoAfter: null
+  };
+  incidents.unshift(newInc);
+  saveIncidents(incidents);
+  currentIncidentId = newInc.id;
+
+  // ── Option B : Générer URL avec données pré-injectées pour RAZ ──
+  // On encode les données de l'incident dans l'URL
+  // RAZ clique le lien → son app s'ouvre avec tout pré-rempli
+  const taskData = {
+    id: newInc.id,
+    area: newInc.area,
+    building: newInc.building,
+    equipment: newInc.equipment,
+    problem: newInc.problem,
+    date: newInc.date
+  };
+
+  const encoded = btoa(encodeURIComponent(JSON.stringify(taskData)));
+  const appUrl = window.location.href.split('?')[0] + '?task=' + encoded;
+
+  const waMsg = `🔧 *Nouvelle intervention PROLIFIC*
+
+`
+    + `📋 Ref : ${newInc.id}
+`
+    + `📍 ${newInc.building} — ${newInc.area}
+`
+    + `🔧 Équipement : ${newInc.equipment}
+`
+    + `⚠️ Problème : ${newInc.problem || 'Voir fiche'}
+
+`
+    + `👆 *Cliquez ce lien pour ouvrir votre fiche directement :*
+${appUrl}`;
+
+  const waEncoded = encodeURIComponent(waMsg);
+  const waUrl = RAZ_WHATSAPP
+    ? `https://wa.me/${RAZ_WHATSAPP}?text=${waEncoded}`
+    : `https://wa.me/?text=${waEncoded}`;
+
+  window.open(waUrl, '_blank');
+  showToast('✅ Fiche créée — Lien envoyé à RAZ !', 'success');
+  setTimeout(() => { showScreen('admin'); renderAdminDashboard(); }, 1500);
+}
+
+// ── FORMULAIRE TECH ──
+function openTechForm(id) {
+  currentIncidentId = id;
+  formPhotoDataURL = null;
+  const incidents = getIncidents();
+  const inc = incidents.find(i => i.id === id);
+  if (!inc) return;
+
+  showScreen('form');
+
+  if (inc.status === 'pending') {
+    // Phase 1 : Diagnostic & Devis
+    document.getElementById('formScreenTitle').innerHTML = 'Diagnostic<span>& Devis</span>';
+    devisRows = inc.devis && inc.devis.length > 0 ? [...inc.devis] : [{ description: '', cost: '' }];
+    renderPhaseIndicator(1, 1);
+    renderDiagnosticForm(inc);
+  } else if (inc.status === 'approved') {
+    // Phase 2 : Photo finale
+    document.getElementById('formScreenTitle').innerHTML = 'Fin de<span>Travaux</span>';
+    renderPhaseIndicator(2, 2);
+    renderClosingForm(inc);
+  } else {
+    showToast('Ce dossier est en statut : ' + STATUS_LABELS[inc.status]);
+    goBack();
+  }
+}
+
+function renderDiagnosticForm(inc) {
+  document.getElementById('formContent').innerHTML = `
+    <div class="form-card">
+      <div class="form-card-title">📋 Rappel de l'intervention</div>
+      <div class="incident-meta" style="margin-bottom:0">
+        <div class="meta-item">📍 <strong>${inc.building}</strong></div>
+        <div class="meta-item">🔧 <strong>${inc.equipment}</strong></div>
+      </div>
+      ${inc.problem ? `<p style="font-size:13px;color:var(--gray-2);margin-top:10px;">${inc.problem}</p>` : ''}
+      ${inc.photoBefore ? `<img src="${inc.photoBefore}" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;margin-top:10px;">` : ''}
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">🔍 Description du diagnostic</div>
+      <div class="field">
+        <label>Travaux nécessaires</label>
+        <textarea id="f_diagnostic" placeholder="Ex : Remplacer le roulement gauche, câble d'alimentation sectionné…">${inc.diagnostic || ''}</textarea>
+      </div>
+      <div class="field">
+        <label>Délai d'exécution estimé</label>
+        <input type="text" id="f_delay" placeholder="Ex : 2 jours, 1 semaine…" value="${inc.delay || ''}">
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">💰 Estimation des coûts</div>
+      <div class="devis-builder" id="devisBuilder"></div>
+      <div class="devis-total-bar" id="devisTotal">
+        <span>Total estimé</span>
+        <strong>0 AED</strong>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">📷 Photo du diagnostic</div>
+      <label for="cameraInputDiag" class="btn-camera">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        Prendre une photo
+      </label>
+      <input type="file" id="cameraInputDiag" accept="image/*" capture="environment" style="display:none">
+
+      <label for="fileInputDiag" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+        ou joindre un fichier (PDF, image)
+      </label>
+      <input type="file" id="fileInputDiag" accept="image/*,application/pdf" style="display:none">
+
+      <div class="photo-thumb" id="photoThumbDiag" style="display:none;margin-top:10px;">
+        <img id="photoImgDiag" src="" alt="">
+        <button class="remove-btn" onclick="removeDiagPhoto()">✕</button>
+      </div>
+    </div>
+
+    <button class="btn-submit" onclick="submitDiagnostic()">📤 Envoyer le devis à l'Admin</button>
+    <button class="btn-back" onclick="goBack()">← Retour</button>
+  `;
+
+  renderDevisBuilder();
+
+  // Listeners photo diagnostic
+  document.getElementById('cameraInputDiag').addEventListener('change', function() {
+    handleDiagPhoto(this.files[0]);
+  });
+  document.getElementById('fileInputDiag').addEventListener('change', function() {
+    handleDiagPhoto(this.files[0]);
+  });
+}
+
+let diagPhotoDataURL = null;
+
+function handleDiagPhoto(file) {
+  if (!file) return;
+  if (file.type === 'application/pdf') {
+    diagPhotoDataURL = null;
+    document.getElementById('photoThumbDiag').style.display = 'none';
+    showToast('📎 Fichier PDF joint au diagnostic', 'success');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > 1200) { h = h * 1200 / w; w = 1200; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      diagPhotoDataURL = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('photoImgDiag').src = diagPhotoDataURL;
+      document.getElementById('photoThumbDiag').style.display = 'block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeDiagPhoto() {
+  diagPhotoDataURL = null;
+  document.getElementById('photoThumbDiag').style.display = 'none';
+  document.getElementById('cameraInputDiag').value = '';
+  document.getElementById('fileInputDiag').value = '';
+}
+
+function renderDevisBuilder() {
+  const builder = document.getElementById('devisBuilder');
+  builder.innerHTML = devisRows.map((row, i) => `
+    <div class="devis-row">
+      <input type="text" placeholder="Description (ex: Roulement)" value="${row.description}"
+        oninput="devisRows[${i}].description=this.value">
+      <input type="number" placeholder="AED" value="${row.cost}"
+        oninput="devisRows[${i}].cost=this.value;updateDevisTotal()">
+      ${devisRows.length > 1 ? `<button class="btn-remove-row" onclick="removeDevisRow(${i})">✕</button>` : '<div></div>'}
+    </div>
+  `).join('') + `<button class="btn-add-row" onclick="addDevisRow()">+ Ajouter une ligne</button>`;
+  updateDevisTotal();
+}
+
+function addDevisRow() {
+  devisRows.push({ description: '', cost: '' });
+  renderDevisBuilder();
+}
+
+function removeDevisRow(i) {
+  devisRows.splice(i, 1);
+  renderDevisBuilder();
+}
+
+function updateDevisTotal() {
+  const total = devisRows.reduce((s, d) => s + (parseFloat(d.cost) || 0), 0);
+  const el = document.getElementById('devisTotal');
+  if (el) el.innerHTML = `<span>Total estimé</span><strong>${total} AED</strong>`;
+}
+
+function submitDiagnostic() {
+  const diagnostic = document.getElementById('f_diagnostic').value;
+  const delay = document.getElementById('f_delay').value;
+
+  if (!diagnostic) {
+    showToast('⚠️ Décrivez les travaux nécessaires', 'error');
+    return;
+  }
+
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === currentIncidentId);
+  if (idx === -1) return;
+
+  incidents[idx].status = 'diagnostic';
+  incidents[idx].diagnostic = diagnostic;
+  incidents[idx].delay = delay;
+  incidents[idx].devis = devisRows.filter(r => r.description);
+  if (diagPhotoDataURL) incidents[idx].photoDiag = diagPhotoDataURL;
+  diagPhotoDataURL = null;
+  saveIncidents(incidents);
+
+  showToast('✅ Devis envoyé à l\'Admin !', 'success');
+  setTimeout(() => { showScreen('tech'); renderTechDashboard(); }, 1500);
+}
+
+function renderClosingForm(inc) {
+  document.getElementById('formContent').innerHTML = `
+    <div class="form-card">
+      <div class="form-card-title">✅ Fin de travaux</div>
+      <div class="incident-meta" style="margin-bottom:0">
+        <div class="meta-item">📍 <strong>${inc.building}</strong></div>
+        <div class="meta-item">🔧 <strong>${inc.equipment}</strong></div>
+      </div>
+      ${inc.diagnostic ? `<p style="font-size:13px;color:var(--gray-2);margin-top:10px;">${inc.diagnostic}</p>` : ''}
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">📷 Photo — Après réparation (obligatoire)</div>
+      <label for="cameraInputForm" class="btn-camera">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        Photo APRÈS réparation
+      </label>
+      <input type="file" id="cameraInputForm" accept="image/*" capture="environment">
+      <div class="photo-thumb" id="photoThumb0">
+        <img id="photoImg0" src="" alt="">
+        <button class="remove-btn" onclick="removePhoto(0)">✕</button>
+      </div>
+    </div>
+
+    <button class="btn-submit green" onclick="submitClosing()">🏁 Déclarer l'intervention terminée</button>
+    <button class="btn-back" onclick="goBack()">← Retour</button>
+  `;
+
+  document.getElementById('cameraInputForm').addEventListener('change', function() {
+    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
+  });
+}
+
+function submitClosing() {
+  if (!formPhotoDataURL) {
+    showToast('⚠️ La photo après réparation est obligatoire', 'error');
+    return;
+  }
+
+  const incidents = getIncidents();
+  const idx = incidents.findIndex(i => i.id === currentIncidentId);
+  if (idx === -1) return;
+
+  incidents[idx].status = 'done';
+  incidents[idx].photoAfter = formPhotoDataURL;
+  incidents[idx].doneAt = new Date().toLocaleDateString('fr-FR');
+  saveIncidents(incidents);
+
+  showToast('✅ Intervention déclarée terminée !', 'success');
+  setTimeout(() => { showScreen('tech'); renderTechDashboard(); }, 1500);
+}
+
+/* ══════════════════════════════════════════════
+   DONNÉES DE DÉMO (optionnel)
+══════════════════════════════════════════════ */
+function loadDemoData() {
+  const existing = getIncidents();
+  if (existing.length > 0) return; // Déjà des données
+
+  const demos = [
+    {
+      id: 'INC-001',
+      date: '14/07/2026',
+      area: 'AREA 1 — Secteur Arjan',
+      building: 'API - Arjan Seven - B2',
+      equipment: 'Treadmill',
+      problem: 'Tapis de course ne démarre plus, erreur E02 affichée',
+      photoBefore: null,
+      status: 'diagnostic',
+      devis: [
+        { description: 'Remplacement roulement', cost: '70' },
+        { description: 'Câble sectionné', cost: '30' }
+      ],
+      delay: '2 jours',
+      diagnostic: 'Roulement gauche HS + câble alimentation sectionné',
+      photoAfter: null
+    },
+    {
+      id: 'INC-002',
+      date: '15/07/2026',
+      area: 'AREA 2 — Secteur Meydan',
+      building: 'API - Meydan Avenue A',
+      equipment: 'Elliptical Cross Trainer',
+      problem: 'Bruit anormal lors de l\'utilisation, pédalier bloqué',
+      photoBefore: null,
+      status: 'pending',
+      devis: [],
+      delay: '',
+      diagnostic: '',
+      photoAfter: null
+    },
+    {
+      id: 'INC-003',
+      date: '13/07/2026',
+      area: 'AREA 5 — Muhaisna',
+      building: 'API Al Muhaisna - Block 1 A',
+      equipment: 'Leg Press Machine',
+      problem: 'Câble de traction cassé',
+      photoBefore: null,
+      status: 'approved',
+      devis: [{ description: 'Câble de remplacement', cost: '120' }],
+      delay: '1 jour',
+      diagnostic: 'Câble principal de traction cassé à remplacer',
+      photoAfter: null
+    }
+  ];
+
+  saveIncidents(demos);
+}
+
+// Charger les données de démo au démarrage
+loadDemoData();
+
+// ── Init maintenance screen quand on y accède ──
+const _origShowScreen = showScreen;
+showScreen = function(id) {
+  _origShowScreen(id);
+  if (id === "maintenance") {
+    initMaintenanceDashboard();
+  }
+};
+
+// ── Détecter si RAZ arrive via un lien direct avec données pré-injectées ──
+(function checkIncomingTask() {
+  const params = new URLSearchParams(window.location.search);
+  const taskParam = params.get('task');
+  if (!taskParam) return;
+
+  try {
+    const taskData = JSON.parse(decodeURIComponent(atob(taskParam)));
+    if (!taskData || !taskData.id) return;
+
+    // Injecter/mettre à jour l'incident dans le localStorage de RAZ
+    const incidents = getIncidents();
+    const existing = incidents.find(i => i.id === taskData.id);
+
+    if (!existing) {
+      // L'incident n'existe pas encore sur ce téléphone → on l'ajoute
+      incidents.unshift({
+        id: taskData.id,
+        date: taskData.date || new Date().toLocaleDateString('fr-FR'),
+        area: taskData.area || '',
+        building: taskData.building || '',
+        equipment: taskData.equipment || '',
+        problem: taskData.problem || '',
+        photoBefore: null,
+        status: 'pending',
+        devis: [],
+        delay: '',
+        diagnostic: '',
+        photoAfter: null
+      });
+      saveIncidents(incidents);
+    }
+
+    // Ouvrir directement la session RAZ sur la bonne tâche
+    currentRole = 'tech';
+    // Nettoyer l'URL pour éviter re-déclenchement
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // Petite animation de bienvenue
+    showScreen('tech');
+    renderTechDashboard();
+
+    setTimeout(() => {
+      showToast('📋 Nouvelle intervention reçue : ' + taskData.id, 'success');
+    }, 500);
+
+    // Ouvrir automatiquement la tâche après 1.5s
+    setTimeout(() => {
+      openTechForm(taskData.id);
+    }, 1500);
+
+  } catch(e) {
+    console.error('Erreur parsing task URL:', e);
+  }
+})();
+
+/* ══════════════════════════════════════════════
+   DASHBOARD MAINTENANCE V1 — Integré dans V2
+══════════════════════════════════════════════ */
+(function() {
+  // Variables globales maintenance (préfixées pour éviter conflits)
+  let maint_initialized = false;
+
+  window.initMaintenanceDashboard = function() {
+    if (maint_initialized) {
+      // Juste re-afficher si déjà initialisé
+      return;
+    }
+    maint_initialized = true;
+
+    const container = document.getElementById('maintenanceDashboard');
+    container.innerHTML = `
+      <!-- CARD 1 : ZONE & BÂTIMENT -->
+      <div class="card" style="background:white;border:1px solid #D8E4F0;border-radius:12px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,100,160,.07);">
+        <div class="card-title" style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#009FC2;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
+          Zone &amp; Bâtiment
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#555577;letter-spacing:.5px;margin-bottom:6px;">Zone (Area)</label>
+          <div style="position:relative;" id="m_areaWrap">
+            <input class="dropdown-input" id="m_areaDisplay" placeholder="Sélectionner une zone…" readonly style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;cursor:pointer;outline:none;">
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#00C8F0;pointer-events:none;font-size:12px;" id="m_areaArrow">▼</span>
+            <div class="dropdown-list" id="m_areaList" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#FFFFFF;border:1.5px solid #C8D8EC;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,100,160,.15);">
+              <input class="dropdown-search" id="m_areaSearch" placeholder="🔍 Rechercher une zone…" style="width:100%;background:#F5F8FF;border:none;border-bottom:1px solid #D8E4F0;padding:10px 14px;color:#1A1D4E;font-size:13px;outline:none;">
+              <div id="m_areaOptions"></div>
+            </div>
+          </div>
+          <input type="hidden" id="m_areaValue">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#555577;letter-spacing:.5px;margin-bottom:6px;">Bâtiment</label>
+          <div style="position:relative;" id="m_buildingWrap">
+            <input class="dropdown-input" id="m_buildingDisplay" placeholder="Sélectionnez d'abord une zone…" readonly style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;cursor:pointer;outline:none;">
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#00C8F0;pointer-events:none;font-size:12px;" id="m_buildingArrow">▼</span>
+            <div class="dropdown-list" id="m_buildingList" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#FFFFFF;border:1.5px solid #C8D8EC;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,100,160,.15);">
+              <input class="dropdown-search" id="m_buildingSearch" placeholder="🔍 Rechercher ou saisir…" style="width:100%;background:#F5F8FF;border:none;border-bottom:1px solid #D8E4F0;padding:10px 14px;color:#1A1D4E;font-size:13px;outline:none;">
+              <div id="m_buildingOptions"></div>
+            </div>
+          </div>
+          <input type="hidden" id="m_buildingValue">
+        </div>
+      </div>
+
+      <!-- CARD 2 : ÉQUIPEMENT -->
+      <div class="card" style="background:white;border:1px solid #D8E4F0;border-radius:12px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,100,160,.07);">
+        <div class="card-title" style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#009FC2;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
+          Équipement
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#555577;margin-bottom:6px;">Type d'équipement</label>
+          <div style="position:relative;" id="m_equipWrap">
+            <input class="dropdown-input" id="m_equipDisplay" placeholder="Sélectionner ou saisir…" style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;outline:none;">
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#00C8F0;pointer-events:none;font-size:12px;" id="m_equipArrow">▼</span>
+            <div class="dropdown-list" id="m_equipList" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#FFFFFF;border:1.5px solid #C8D8EC;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,100,160,.15);">
+              <input class="dropdown-search" id="m_equipSearch" placeholder="🔍 Rechercher ou saisir…" style="width:100%;background:#F5F8FF;border:none;border-bottom:1px solid #D8E4F0;padding:10px 14px;color:#1A1D4E;font-size:13px;outline:none;">
+              <div id="m_equipOptions"></div>
+            </div>
+          </div>
+          <input type="hidden" id="m_equipValue">
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:#555577;margin-bottom:6px;">Statut</label>
+          <div style="position:relative;" id="m_statusWrap">
+            <input class="dropdown-input" id="m_statusDisplay" placeholder="Sélectionner ou saisir un statut…" style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;outline:none;">
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#00C8F0;pointer-events:none;font-size:12px;" id="m_statusArrow">▼</span>
+            <div class="dropdown-list" id="m_statusList" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#FFFFFF;border:1.5px solid #C8D8EC;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,100,160,.15);">
+              <input class="dropdown-search" id="m_statusSearch" placeholder="🔍 Rechercher ou saisir…" style="width:100%;background:#F5F8FF;border:none;border-bottom:1px solid #D8E4F0;padding:10px 14px;color:#1A1D4E;font-size:13px;outline:none;">
+              <div id="m_statusOptions"></div>
+            </div>
+          </div>
+          <input type="hidden" id="m_statusValue">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#555577;margin-bottom:6px;">Référence</label>
+          <input type="text" id="m_referenceInput" placeholder="Ex : REF-9874" style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 14px;color:#1A1D4E;font-size:14px;outline:none;">
+        </div>
+      </div>
+
+      <!-- CARD 3 : PHOTO -->
+      <div class="card" style="background:white;border:1px solid #D8E4F0;border-radius:12px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,100,160,.07);">
+        <div class="card-title" style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#009FC2;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
+          Photo & Fichier
+        </div>
+        <label for="m_cameraInput" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#F5F8FF;border:2px dashed #C8D8EC;border-radius:8px;padding:16px;color:#009FC2;font-size:14px;font-weight:600;cursor:pointer;width:100%;">
+          📷 Prendre une photo
+        </label>
+        <input type="file" id="m_cameraInput" accept="image/*" capture="environment" style="display:none">
+        <label for="m_fileInput" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;cursor:pointer;">
+          🔗 ou joindre un fichier (PDF, image)
+        </label>
+        <input type="file" id="m_fileInput" accept="image/*,application/pdf" style="display:none">
+        <div id="m_photoPreview" style="display:none;position:relative;border-radius:8px;overflow:hidden;border:1.5px solid #C8D8EC;margin-top:10px;">
+          <img id="m_photoImg" src="" style="width:100%;max-height:250px;object-fit:cover;display:block;">
+          <button onclick="m_removePhoto()" style="position:absolute;top:8px;right:8px;background:rgba(220,38,38,.85);border:none;border-radius:50%;width:30px;height:30px;color:white;font-size:16px;cursor:pointer;">✕</button>
+        </div>
+      </div>
+
+      <!-- CARD 4 : COMMENTAIRES -->
+      <div class="card" style="background:white;border:1px solid #D8E4F0;border-radius:12px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,100,160,.07);">
+        <div class="card-title" style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#009FC2;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
+          Commentaires & Notes
+        </div>
+        <textarea id="m_notesField" rows="6" placeholder="Saisir vos commentaires, observations, anomalies constatées…"
+          style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:12px 14px;color:#1A1D4E;font-size:14px;line-height:1.6;resize:vertical;min-height:130px;outline:none;font-family:inherit;"></textarea>
+      </div>
+
+      <!-- CARD 5 : ACTIONS -->
+      <div class="card" style="background:white;border:1px solid #D8E4F0;border-radius:12px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,100,160,.07);">
+        <div class="card-title" style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#009FC2;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
+          Actions
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button onclick="m_generatePDF()" style="flex:1;min-width:140px;padding:14px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#00C8F0,#009FC2);color:#0D0E2B;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📄 Générer PDF
+          </button>
+          <button onclick="m_sharePDF()" style="flex:1;min-width:140px;padding:14px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#7B61FF,#5A47CC);color:white;display:flex;align-items:center;justify-content:center;gap:8px;">
+            📲 Partager
+          </button>
+        </div>
+        <button onclick="m_reset()" style="margin-top:10px;width:100%;padding:12px;background:transparent;border:1.5px solid #FFBBBB;border-radius:8px;font-size:14px;color:#DC2626;cursor:pointer;">
+          🔄 Réinitialiser
+        </button>
+      </div>
+    `;
+
+    // Initialiser les données maintenance
+    initMaintenanceData();
+  };
+
+  // ── Données maintenance ──
+  const M_AREAS = [
+    { id:'a1', label:'AREA 1 — Secteur Arjan (73 équip.)', buildings:['API - Arjan Seven - A2 (28)','API - Arjan Seven - B2 (15)','API - Arjan Seven - B3 (15)','API - Arjan Two - C1 (7)','API - Arjan Two - C2 (8)'] },
+    { id:'a2', label:'AREA 2 — Secteur Meydan (105 équip.)', buildings:['API - Meydan Avenue A (24)','API - Meydan Avenue B (24)','API - Meydan Avenue C (25)','API - Meydan Avenue D (23)','API Meydan Horizon (9)'] },
+    { id:'a3', label:'AREA 3 — Villas & Résidences (31 équip.)', buildings:['API 1000 (22)','API 29 Courtyard Villas (9)'] },
+    { id:'a4', label:'AREA 4 — Jumeirah / Wasl / Satwa (36 équip.)', buildings:['API 17 Jumeirah Villas (9)','API Al Wasl 22 Villas (9)','API Diyafah Building (9)','API Duwest Al Satwa (9)'] },
+    { id:'a5', label:'AREA 5 — Muhaisna & Secteur Nord (76 équip.)', buildings:['API Al Muhaisna - Block 1 A (10)','API Al Muhaisna - Block 1 B (9)','API Al Muhaisna - Block 1 C (10)','API Al Muhaisna - Block 1 D (9)','API Residency - Al Nahda 1 (10)','API Al Warqa A Residency (9)','API Mirdif 13 Villas (10)','API Silicon Residency (9)'] },
+    { id:'a6', label:'AREA 6 — Barsha Villas (26 équip.)', buildings:['API 43 Villas Barsha (9)','API 46 Villas Barsha (17)'] },
+    { id:'a7', label:'AREA 7 — Centrepoint & Al Raffa (37 équip.)', buildings:['API Centrepoint Apart. (9)','API Al Raffa 1 Building (10)','API Al Raffa 2 Building (9)','API Al Raffa 3 Building (9)'] },
+    { id:'a8', label:'AREA 8 — Barsha Heights & Tecom (25 équip.)', buildings:['API Barsha Heights Resid. (9)','API Tecom Residency (16)'] },
+  ];
+
+  const M_EQUIP = {'🏃 Cardio':['Treadmill','Elliptical Cross Trainer','Stationary Upright Bike','Recumbent Bike','Spin Bike / Indoor Cycling Bike','Stair Climber / StairMaster','Rowing Machine / RowErg','Assault AirBike','SkiErg','Arc Trainer'],'💪 Machines Guidées':['Chest Press Machine','Incline Chest Press Machine','Pec Deck Machine / Butterfly','Lat Pulldown Machine','Seated Cable Row Machine','Shoulder Press Machine','Lateral Raise Machine','Biceps Curl Machine','Triceps Extension Machine','Assisted Pull-Up and Dip Machine','Leg Press Machine','Hack Squat Machine','Leg Extension Machine','Seated Leg Curl Machine','Lying Leg Curl Machine','Standing Calf Raise Machine','Seated Calf Raise Machine','Abductor Machine','Adductor Machine','Abdominal Crunch Machine','Back Extension Machine / Hyperextension','Smith Machine','Cable Crossover Machine / Functional Trainer'],'🏋 Poids Libres':['Dumbbells','Barbell','EZ-Curl Bar','Trap Bar / Hex Bar','Kettlebells','Olympic Weight Plates','Bumper Plates'],'🪑 Bancs & Racks':['Flat Bench','Adjustable Bench','Olympic Bench Press','Preacher Curl Bench','Roman Chair','Power Rack / Power Cage','Squat Stand'],'🤸 Fonctionnel & Accessoires':['Pull-Up Bar','Gymnastic Rings','TRX Suspension Trainer','Plyo Box / Plyometric Box','Battle Ropes','Medicine Ball','Slam Ball','Wall Ball','Ab Wheel / Ab Roller','Resistance Bands','Sandbag','Weight Vest','Foam Roller']};
+
+  const M_STATUS = ['Out of service','Missing','Not listed','Missing tag'];
+
+  let m_state = { area:'',building:'',equipment:'',notes:'',photoDataURL:null,status:'',reference:'' };
+
+  function initMaintenanceData() {
+    // Dropdown helper
+    function mDD(displayId, listId, searchId, optionsId, arrowId, valueId, items, allowManual, onSelect) {
+      const display = document.getElementById(displayId);
+      const list = document.getElementById(listId);
+      const search = document.getElementById(searchId);
+      const opts = document.getElementById(optionsId);
+      const arrow = document.getElementById(arrowId);
+      const hidden = document.getElementById(valueId);
+      let open = false;
+
+      function render(filter='') {
+        opts.innerHTML = '';
+        const q = filter.toLowerCase();
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            if (!q || item.toLowerCase().includes(q)) {
+              const d = document.createElement('div');
+              d.style.cssText = 'padding:10px 14px;font-size:13px;cursor:pointer;color:#333355;border-bottom:1px solid #F0F4FA;';
+              d.textContent = item;
+              d.onmouseover = () => d.style.background = '#E8F6FB';
+              d.onmouseout = () => d.style.background = '';
+              d.onclick = () => { display.value=item; hidden.value=item; close(); if(onSelect) onSelect(item); };
+              opts.appendChild(d);
+            }
+          });
+        } else {
+          for (const [group, list2] of Object.entries(items)) {
+            const filtered = list2.filter(i => !q || i.toLowerCase().includes(q));
+            if (!filtered.length) continue;
+            const h = document.createElement('div');
+            h.style.cssText = 'padding:8px 14px;font-size:10px;font-weight:700;color:#009FC2;background:#EEF6FC;text-transform:uppercase;letter-spacing:1px;';
+            h.textContent = group;
+            opts.appendChild(h);
+            filtered.forEach(item => {
+              const d = document.createElement('div');
+              d.style.cssText = 'padding:10px 14px;font-size:13px;cursor:pointer;color:#333355;border-bottom:1px solid #F0F4FA;';
+              d.textContent = item;
+              d.onmouseover = () => d.style.background = '#E8F6FB';
+              d.onmouseout = () => d.style.background = '';
+              d.onclick = () => { display.value=item; hidden.value=item; close(); if(onSelect) onSelect(item); };
+              opts.appendChild(d);
+            });
+          }
+        }
+        if (allowManual && filter) {
+          const d = document.createElement('div');
+          d.style.cssText = 'padding:10px 14px;font-size:13px;cursor:pointer;color:#009FC2;font-style:italic;border-top:1px solid #D8E4F0;';
+          d.textContent = '+ Saisir : "' + filter + '"';
+          d.onclick = () => { display.value=filter; hidden.value=filter; close(); if(onSelect) onSelect(filter); };
+          opts.appendChild(d);
+        }
+      }
+
+      function close() { list.style.display='none'; open=false; }
+      function openDD() { list.style.display='block'; open=true; search.value=''; render(); setTimeout(()=>search.focus(),50); }
+
+      display.addEventListener('click', () => open ? close() : openDD());
+      search.addEventListener('input', () => render(search.value));
+      document.addEventListener('click', e => {
+        if (!document.getElementById(displayId.replace('Display','Wrap'))?.contains(e.target) && e.target !== display) close();
+      });
+
+      return { clear() { display.value=''; hidden.value=''; }, setItems(i) { items=i; } };
+    }
+
+    // Area DD
+    const m_areaDD = mDD('m_areaDisplay','m_areaList','m_areaSearch','m_areaOptions','m_areaArrow','m_areaValue',
+      M_AREAS.map(a=>a.label), false, val => {
+        m_state.area = val;
+        const found = M_AREAS.find(a=>a.label===val);
+        m_buildingDD.setItems(found ? found.buildings : []);
+        m_buildingDD.clear();
+        document.getElementById('m_buildingDisplay').placeholder = 'Sélectionner un bâtiment…';
+        m_state.building = '';
+      }
+    );
+
+    // Building DD
+    const m_buildingDD = mDD('m_buildingDisplay','m_buildingList','m_buildingSearch','m_buildingOptions','m_buildingArrow','m_buildingValue',[], true, val => { m_state.building = val; });
+
+    // Equip DD
+    mDD('m_equipDisplay','m_equipList','m_equipSearch','m_equipOptions','m_equipArrow','m_equipValue', M_EQUIP, true, val => { m_state.equipment = val; });
+    const eqDisp = document.getElementById('m_equipDisplay');
+    eqDisp.removeAttribute('readonly');
+    eqDisp.addEventListener('input', function() { m_state.equipment = this.value; });
+
+    // Status DD
+    mDD('m_statusDisplay','m_statusList','m_statusSearch','m_statusOptions','m_statusArrow','m_statusValue', M_STATUS, true, val => { m_state.status = val; });
+    const stDisp = document.getElementById('m_statusDisplay');
+    stDisp.removeAttribute('readonly');
+    stDisp.addEventListener('input', function() { m_state.status = this.value; });
+
+    // Référence
+    document.getElementById('m_referenceInput').addEventListener('input', function() { m_state.reference = this.value; });
+
+    // Notes
+    document.getElementById('m_notesField').addEventListener('input', function() { m_state.notes = this.value; });
+
+    // Camera
+    document.getElementById('m_cameraInput').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > 1200) { h = h*1200/w; w = 1200; }
+          canvas.width=w; canvas.height=h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          m_state.photoDataURL = canvas.toDataURL('image/jpeg',0.75);
+          document.getElementById('m_photoImg').src = m_state.photoDataURL;
+          document.getElementById('m_photoPreview').style.display = 'block';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('m_fileInput').addEventListener('change', function() {
+      const file = this.files[0];
+      if (!file || file.type === 'application/pdf') return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        m_state.photoDataURL = e.target.result;
+        document.getElementById('m_photoImg').src = e.target.result;
+        document.getElementById('m_photoPreview').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  window.m_removePhoto = function() {
+    m_state.photoDataURL = null;
+    document.getElementById('m_photoPreview').style.display = 'none';
+    document.getElementById('m_cameraInput').value = '';
+  };
+
+  window.m_generatePDF = async function() {
+    if (!window.jspdf) { showToast('⚠️ jsPDF non chargé', 'error'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4', putOnlyUsedFonts:true });
+    const W=210, H=297, margin=16, contentW=W-margin*2;
+    let y=0;
+
+    doc.setFillColor(255,255,255); doc.rect(0,0,W,H,'F');
+    doc.setDrawColor(220,225,235); doc.setLineWidth(0.5); doc.line(0,28,W,28);
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const timeStr = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    // Logo PROLIFIC
+    doc.setFillColor(0,200,240);
+    doc.roundedRect(margin,6,5,16,1,1,'F');
+    doc.roundedRect(margin,6,12,8,2,2,'F');
+    doc.setFillColor(13,14,43);
+    doc.roundedRect(margin+5,8,5,4,1,1,'F');
+    doc.setFillColor(0,200,240);
+    doc.triangle(margin,20,margin-2,25,margin+4,22,'F');
+    doc.setTextColor(13,14,43); doc.setFontSize(13); doc.setFont('helvetica','bold');
+    doc.text('ROLIFIC', margin+14, 18);
+
+    // Centre
+    const reportId = 'MAINTENANCE REPORT #'+Math.floor(10000000+Math.random()*89999999);
+    doc.setTextColor(0,180,220); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    doc.text(reportId, W/2, 11, {align:'center'});
+    doc.setFontSize(8); doc.text(dateStr+'  '+timeStr, W/2, 19, {align:'center'});
+
+    // Logo API
+    const ax=W-margin-42, ay=5, ah=18, asw=14;
+    doc.setFillColor(44,52,84); doc.rect(ax,ay,asw,ah,'F');
+    doc.setDrawColor(200,98,42); doc.setLineWidth(0.8);
+    doc.rect(ax+3,ay+7,8,9); doc.line(ax+2,ay+7,ax+7,ay+3); doc.line(ax+7,ay+3,ax+12,ay+7);
+    doc.setLineWidth(0.5); doc.rect(ax+4,ay+8,2.5,3); doc.rect(ax+7.5,ay+8,2.5,3); doc.rect(ax+5.5,ay+13,3,3);
+    doc.setFillColor(240,234,216); doc.rect(ax+asw,ay,28,ah,'F');
+    doc.setTextColor(44,52,84); doc.setFontSize(13); doc.setFont('times','bold');
+    doc.text('API', ax+asw+14, ay+12.5, {align:'center'});
+
+    y=36;
+    doc.setDrawColor(0,200,240); doc.setLineWidth(0.4); doc.line(margin,y,W-margin,y); y+=8;
+
+    function section(title, lines) {
+      const rh=8, th=8, bh=th+lines.length*rh+4;
+      doc.setFillColor(0,200,240); doc.rect(margin,y,3,bh,'F');
+      doc.setFillColor(255,255,255); doc.rect(margin+3,y,contentW-3,bh,'F');
+      doc.setTextColor(0,160,200); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text(title.toUpperCase(), margin+7, y+5.5);
+      y+=th;
+      lines.forEach(([k,v]) => {
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(90,90,110);
+        doc.text(k+' :', margin+7, y+5.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(20,20,40);
+        doc.text(String(v||'—').substring(0,60), margin+52, y+5.5);
+        y+=rh;
+      });
+      y+=6;
+    }
+
+    section('Localisation',[
+      ['Zone (Area)', m_state.area ? m_state.area.replace(/\s*\(.*\)\s*/g,'').trim() : '—'],
+      ['Bâtiment', m_state.building ? m_state.building.replace(/\s*\(.*\)\s*/g,'').trim() : '—'],
+    ]);
+    section('Équipement',[
+      ['Type', m_state.equipment||'—'],
+      ['Statut', m_state.status||'—'],
+      ['Référence', m_state.reference||'—'],
+    ]);
+
+    if (m_state.notes) {
+      const sn = doc.splitTextToSize(m_state.notes, contentW-10);
+      const bh=8+sn.length*5.5+5;
+      doc.setFillColor(0,200,240); doc.rect(margin,y,3,bh,'F');
+      doc.setFillColor(255,255,255); doc.rect(margin+3,y,contentW-3,bh,'F');
+      doc.setTextColor(0,160,200); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text('COMMENTAIRES', margin+7, y+5.5); y+=8;
+      doc.setTextColor(20,20,40); doc.setFontSize(9); doc.setFont('helvetica','normal');
+      doc.text(sn, margin+7, y+5); y+=sn.length*5.5+8;
+    }
+
+    if (m_state.photoDataURL) {
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const ar = img.naturalHeight/img.naturalWidth;
+          const maxW = contentW-6;
+          const maxH = Math.min(H-y-30, 90);
+          let iw=maxW, ih=iw*ar;
+          if (ih>maxH) { ih=maxH; iw=ih/ar; }
+          const bh=10+ih+5;
+          doc.setFillColor(0,200,240); doc.rect(margin,y,3,bh,'F');
+          doc.setFillColor(255,255,255); doc.rect(margin+3,y,contentW-3,bh,'F');
+          doc.setTextColor(0,160,200); doc.setFontSize(8); doc.setFont('helvetica','bold');
+          doc.text('PHOTO', margin+7, y+6); y+=10;
+          const ix=margin+3+((contentW-3)-iw)/2;
+          try { doc.addImage(m_state.photoDataURL,'JPEG',ix,y,iw,ih); } catch(e) {}
+          y+=ih+8; resolve();
+        };
+        img.src = m_state.photoDataURL;
+      });
+    }
+
+    doc.setFillColor(0,200,240); doc.rect(0,H-12,W,12,'F');
+    doc.setTextColor(13,14,43); doc.setFontSize(7);
+    doc.setFont('helvetica','bold'); doc.text('PROLIFIC', margin, H-4.5);
+    doc.setFont('helvetica','normal'); doc.text('Rapport généré automatiquement', margin+18, H-4.5);
+    doc.text('Page 1/1', W-margin, H-4.5, {align:'right'});
+
+    const cleanPart = s => (s||'').replace(/\s*\(.*\)\s*/g,'').trim().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').substring(0,30);
+    const filename = [cleanPart(m_state.building)||'Batiment', cleanPart(m_state.equipment)||'Equipement', cleanPart(m_state.status), cleanPart(m_state.reference)].filter(Boolean).join('-')+'.pdf';
+
+    return { doc, filename };
+  };
+
+  window.m_generatePDF_and_save = async function() {
+    const result = await window.m_generatePDF();
+    if (!result) return;
+    result.doc.save(result.filename);
+    showToast('✅ PDF téléchargé !', 'success');
+  };
+
+  // Override bouton Générer PDF
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.textContent.includes('Générer PDF') && document.getElementById('screen-maintenance').classList.contains('active')) {
+      e.preventDefault();
+      window.m_generatePDF_and_save();
+    }
+    if (e.target && e.target.textContent.includes('Partager') && document.getElementById('screen-maintenance').classList.contains('active')) {
+      e.preventDefault();
+      window.m_sharePDF();
     }
   });
-});
+
+  window.m_sharePDF = async function() {
+    const result = await window.m_generatePDF();
+    if (!result) return;
+    const blob = result.doc.output('blob');
+    const file = new File([blob], result.filename, {type:'application/pdf'});
+    if (navigator.canShare && navigator.canShare({files:[file]})) {
+      try { await navigator.share({title:'Rapport PROLIFIC', files:[file]}); showToast('✅ Partagé !','success'); }
+      catch(e) { if(e.name!=='AbortError') { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=result.filename; a.click(); } }
+    } else {
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=result.filename; a.click();
+    }
+  };
+
+  window.m_reset = function() {
+    m_state = {area:'',building:'',equipment:'',notes:'',photoDataURL:null,status:'',reference:''};
+    ['m_areaDisplay','m_buildingDisplay','m_equipDisplay','m_statusDisplay','m_referenceInput','m_notesField'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    ['m_areaValue','m_buildingValue','m_equipValue','m_statusValue'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('m_photoPreview').style.display='none';
+    showToast('🔄 Réinitialisé');
+  };
+
+})();
+
 </script>
 </body>
 </html>
-
