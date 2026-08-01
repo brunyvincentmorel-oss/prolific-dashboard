@@ -1070,6 +1070,18 @@ body {
   </div>
 </div>
 
+<!-- RAZ PIN Modal -->
+<div class="modal-overlay" id="razPinModal">
+  <div class="modal-box">
+    <h3>🔧 Technician Access</h3>
+    <p>Enter your PIN code</p>
+    <input type="password" class="pin-input" id="razPinInput" maxlength="3" placeholder="•••" inputmode="numeric">
+    <div class="pin-error" id="razPinError">Incorrect code. Try again.</div>
+    <button class="btn-pin" onclick="checkRazPin()">Access</button>
+    <button class="btn-cancel" onclick="document.getElementById('razPinModal').classList.remove('active')">Cancel</button>
+  </div>
+</div>
+
 <!-- Reset All Modal -->
 <div class="modal-overlay" id="resetAllModal">
   <div class="modal-box" style="text-align:center;">
@@ -1325,7 +1337,17 @@ body {
 /* ══════════════════════════════════════════════
    DATA & STATE
 ══════════════════════════════════════════════ */
-const ADMIN_PIN = '974';
+// PINs stockés en hash SHA-256 (jamais en clair dans le code source public)
+const ADMIN_PIN_HASH = '51cfe39433c33d8144a4d4663e3834ca238ce78c5e38335c96a9301c5960ac0e'; // 974
+const MANAGER_PIN_HASH = '51cfe39433c33d8144a4d4663e3834ca238ce78c5e38335c96a9301c5960ac0e'; // 974
+const RAZ_PIN_HASH = '0e78437805639c14d6413de94c031fd1babdb561b7728d31ae06bfc5ff1766d4'; // 780
+
+async function sha256Hex(str) {
+  const data = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 let currentTechProfile = 'raz'; // 'raz' ou 'manager'
 let currentFlow = 'issue'; // 'issue' ou 'work_order'
 
@@ -1574,9 +1596,9 @@ function hidePinModal() {
   document.getElementById('pinModal').classList.remove('active');
 }
 
-function checkPin() {
+async function checkPin() {
   const pin = document.getElementById('pinInput').value;
-  if (pin === ADMIN_PIN) {
+  if (await sha256Hex(pin) === ADMIN_PIN_HASH) {
     hidePinModal();
     loginAdmin();
   } else {
@@ -1592,6 +1614,8 @@ document.getElementById('pinInput').addEventListener('keydown', e => {
 document.addEventListener('keydown', e => {
   const mp = document.getElementById('managerPinInput');
   if (document.activeElement === mp && e.key === 'Enter') checkManagerPin();
+  const rp = document.getElementById('razPinInput');
+  if (document.activeElement === rp && e.key === 'Enter') checkRazPin();
 });
 
 function loginAdmin() {
@@ -1604,6 +1628,11 @@ function loginTech(profile = 'raz') {
   if (profile === 'manager') {
     // Manager nécessite un PIN
     showManagerPinModal();
+    return;
+  }
+  if (profile === 'raz') {
+    // RAZ nécessite un PIN
+    showRazPinModal();
     return;
   }
   currentRole = 'tech';
@@ -1621,9 +1650,9 @@ function showManagerPinModal() {
   setTimeout(() => document.getElementById('managerPinInput').focus(), 100);
 }
 
-function checkManagerPin() {
+async function checkManagerPin() {
   const pin = document.getElementById('managerPinInput').value;
-  if (pin === '974') {
+  if (await sha256Hex(pin) === MANAGER_PIN_HASH) {
     document.getElementById('managerPinModal').classList.remove('active');
     currentRole = 'manager';
     currentTechProfile = 'manager';
@@ -1635,6 +1664,30 @@ function checkManagerPin() {
     document.getElementById('managerPinError').style.display = 'block';
     document.getElementById('managerPinInput').value = '';
     document.getElementById('managerPinInput').focus();
+  }
+}
+
+function showRazPinModal() {
+  document.getElementById('razPinInput').value = '';
+  document.getElementById('razPinError').style.display = 'none';
+  document.getElementById('razPinModal').classList.add('active');
+  setTimeout(() => document.getElementById('razPinInput').focus(), 100);
+}
+
+async function checkRazPin() {
+  const pin = document.getElementById('razPinInput').value;
+  if (await sha256Hex(pin) === RAZ_PIN_HASH) {
+    document.getElementById('razPinModal').classList.remove('active');
+    currentRole = 'tech';
+    currentTechProfile = 'raz';
+    showScreen('tech');
+    const titleEl = document.getElementById('techHeaderTitle');
+    if (titleEl) titleEl.innerHTML = 'My Tasks<span>Technician Interface</span>';
+    renderTechDashboard();
+  } else {
+    document.getElementById('razPinError').style.display = 'block';
+    document.getElementById('razPinInput').value = '';
+    document.getElementById('razPinInput').focus();
   }
 }
 
