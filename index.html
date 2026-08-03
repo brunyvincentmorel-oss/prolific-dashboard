@@ -1544,21 +1544,32 @@ function refreshCurrentScreen() {
   else if (active.id === 'screen-tech') renderTechDashboard();
 }
 
-incidentsRef.on('value', (snapshot) => {
-  const val = snapshot.val();
-  incidentsCache = val ? Object.values(val) : [];
+// Attaché seulement une fois la connexion anonyme confirmée (onAuthStateChanged),
+// pour éviter une lecture lancée avant que Firebase n'ait le droit d'accéder aux données.
+let incidentsListenerAttached = false;
+function attachIncidentsListener() {
+  if (incidentsListenerAttached) return;
+  incidentsListenerAttached = true;
+  incidentsRef.on('value', (snapshot) => {
+    const val = snapshot.val();
+    incidentsCache = val ? Object.values(val) : [];
 
-  if (!firebaseFirstLoadDone) {
-    firebaseFirstLoadDone = true;
-    // Ne traiter le lien ?task=... qu'une fois les données réelles chargées,
-    // pour ne jamais écraser la base avec un cache local vide.
-    handleIncomingTaskAfterSync();
-  }
+    if (!firebaseFirstLoadDone) {
+      firebaseFirstLoadDone = true;
+      // Ne traiter le lien ?task=... qu'une fois les données réelles chargées,
+      // pour ne jamais écraser la base avec un cache local vide.
+      handleIncomingTaskAfterSync();
+    }
 
-  refreshCurrentScreen();
-}, (err) => {
-  console.error('Firebase read error:', err);
-  showToast('⚠️ Unable to connect to shared database', 'error');
+    refreshCurrentScreen();
+  }, (err) => {
+    console.error('Firebase read error:', err);
+    showToast('⚠️ Unable to connect to shared database', 'error');
+  });
+}
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user) attachIncidentsListener();
 });
 
 function genId() {
