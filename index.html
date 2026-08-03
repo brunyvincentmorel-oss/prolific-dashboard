@@ -17,6 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <style>
 :root {
   --cyan:    #00C8F0;
@@ -1506,6 +1507,7 @@ const firebaseConfig = {
   appId: "1:174305254232:web:6799d8cd1661cedbf9a32d"
 };
 firebase.initializeApp(firebaseConfig);
+firebase.auth().signInAnonymously().catch(err => console.error('Firebase auth error:', err));
 const db = firebase.database();
 const incidentsRef = db.ref('incidents');
 
