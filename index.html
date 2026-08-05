@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
 <style>
 :root {
   --cyan:    #00C8F0;
@@ -1507,6 +1508,9 @@ const firebaseConfig = {
   appId: "1:174305254232:web:6799d8cd1661cedbf9a32d"
 };
 firebase.initializeApp(firebaseConfig);
+// App Check en mode surveillance : reCAPTCHA v3, "enforce" désactivé côté console
+// pour l'instant, donc ceci n'affecte aucune requête existante — observation seule.
+firebase.appCheck().activate('6LeswHYtAAAAAKKBul_CMFlEPGKCQJJ8WSqFUmaO', true);
 firebase.auth().signInAnonymously().catch(err => console.error('Firebase auth error:', err));
 const db = firebase.database();
 const incidentsRef = db.ref('incidents');
