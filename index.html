@@ -19,6 +19,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
 <style>
 :root {
   --cyan:    #00C8F0;
@@ -1339,15 +1340,19 @@ body {
 /* ══════════════════════════════════════════════
    DATA & STATE
 ══════════════════════════════════════════════ */
-// PINs stockés en hash SHA-256 (jamais en clair dans le code source public)
-const ADMIN_PIN_HASH = '51cfe39433c33d8144a4d4663e3834ca238ce78c5e38335c96a9301c5960ac0e'; // 974
-const MANAGER_PIN_HASH = '51cfe39433c33d8144a4d4663e3834ca238ce78c5e38335c96a9301c5960ac0e'; // 974
-const RAZ_PIN_HASH = '0e78437805639c14d6413de94c031fd1babdb561b7728d31ae06bfc5ff1766d4'; // 780
-
-async function sha256Hex(str) {
-  const data = new TextEncoder().encode(str);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+// Vérification du PIN déportée côté serveur (Cloud Function "verifyPin") :
+// le PIN n'est plus comparé ni stocké en aucune forme dans ce fichier.
+// En cas de succès, le rôle vient d'un jeton Firebase signé côté serveur.
+async function verifyPinAndLogin(pin, role) {
+  try {
+    const verifyPin = functionsClient.httpsCallable('verifyPin');
+    const result = await verifyPin({pin, role});
+    await firebase.auth().signInWithCustomToken(result.data.token);
+    return true;
+  } catch (err) {
+    console.error('verifyPin error:', err);
+    return false;
+  }
 }
 
 let currentTechProfile = 'raz'; // 'raz' ou 'manager'
@@ -1514,6 +1519,7 @@ firebase.appCheck().activate('6LeswHYtAAAAAKKBul_CMFlEPGKCQJJ8WSqFUmaO', true);
 firebase.auth().signInAnonymously().catch(err => console.error('Firebase auth error:', err));
 const db = firebase.database();
 const incidentsRef = db.ref('incidents');
+const functionsClient = firebase.app().functions('us-central1');
 
 // Cache local en mémoire, tenu à jour en direct par Firebase.
 // Toutes les fonctions existantes de l'app appellent getIncidents()/saveIncidents()
@@ -1615,7 +1621,7 @@ function hidePinModal() {
 
 async function checkPin() {
   const pin = document.getElementById('pinInput').value;
-  if (await sha256Hex(pin) === ADMIN_PIN_HASH) {
+  if (await verifyPinAndLogin(pin, 'owner')) {
     hidePinModal();
     loginAdmin();
   } else {
@@ -1669,7 +1675,7 @@ function showManagerPinModal() {
 
 async function checkManagerPin() {
   const pin = document.getElementById('managerPinInput').value;
-  if (await sha256Hex(pin) === MANAGER_PIN_HASH) {
+  if (await verifyPinAndLogin(pin, 'manager')) {
     document.getElementById('managerPinModal').classList.remove('active');
     currentRole = 'manager';
     currentTechProfile = 'manager';
@@ -1693,7 +1699,7 @@ function showRazPinModal() {
 
 async function checkRazPin() {
   const pin = document.getElementById('razPinInput').value;
-  if (await sha256Hex(pin) === RAZ_PIN_HASH) {
+  if (await verifyPinAndLogin(pin, 'raz')) {
     document.getElementById('razPinModal').classList.remove('active');
     currentRole = 'tech';
     currentTechProfile = 'raz';
