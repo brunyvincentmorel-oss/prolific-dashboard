@@ -1578,8 +1578,20 @@ function attachIncidentsListener() {
   });
 }
 
-firebase.auth().onAuthStateChanged(user => {
-  if (user) attachIncidentsListener();
+// N'attache l'écoute des données que si l'utilisateur a un vrai rôle (owner/
+// manager/raz) — jamais pour la session anonyme de démarrage, qui n'a aucun
+// droit de lecture. Se redéclenche automatiquement après une connexion PIN
+// réussie, puisque signInWithCustomToken relance cet évènement.
+firebase.auth().onAuthStateChanged(async user => {
+  if (!user) return;
+  try {
+    const tokenResult = await user.getIdTokenResult();
+    if (tokenResult.claims && tokenResult.claims.role) {
+      attachIncidentsListener();
+    }
+  } catch (err) {
+    console.error('Auth token check error:', err);
+  }
 });
 
 function genId() {
