@@ -1345,12 +1345,15 @@ body {
 // En cas de succès, le rôle vient d'un jeton Firebase signé côté serveur.
 async function verifyPinAndLogin(pin, role) {
   try {
+    console.log('DEBUG verifyPinAndLogin start', {pin, role, uidBefore: firebase.auth().currentUser && firebase.auth().currentUser.uid});
     const verifyPin = functionsClient.httpsCallable('verifyPin');
     const result = await verifyPin({pin, role});
-    await firebase.auth().signInWithCustomToken(result.data.token);
+    console.log('DEBUG callable result', result.data);
+    const cred = await firebase.auth().signInWithCustomToken(result.data.token);
+    console.log('DEBUG signInWithCustomToken done', {credUid: cred.user.uid, uidAfter: firebase.auth().currentUser && firebase.auth().currentUser.uid});
     return true;
   } catch (err) {
-    console.error('verifyPin error:', err);
+    console.error('DEBUG verifyPin error:', err && err.code, err && err.message, err);
     return false;
   }
 }
