@@ -1340,6 +1340,19 @@ body {
 /* ══════════════════════════════════════════════
    DATA & STATE
 ══════════════════════════════════════════════ */
+// Échappe un texte libre avant insertion dans du HTML (innerHTML), pour
+// empêcher qu'un champ saisi par un utilisateur (equipment, building,
+// problem, etc.) ne soit interprété comme du code par le navigateur d'un
+// autre utilisateur consultant la même intervention.
+function escapeHtml(str) {
+  if (str === null || str === undefined) return str;
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 // Vérification du PIN déportée côté serveur (Cloud Function "verifyPin") :
 // le PIN n'est plus comparé ni stocké en aucune forme dans ce fichier.
 // En cas de succès, le rôle vient d'un jeton Firebase signé côté serveur.
@@ -1905,14 +1918,14 @@ function buildDiagnosticCostBlock(inc) {
   const total = inc.devis.reduce((s, d) => s + (parseFloat(d.cost) || 0), 0);
   return `
     <div class="devis-section">
-      ${inc.diagnostic ? `<div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--gray-2);">Works Description</span><div style="font-size:13px;color:var(--navy);font-weight:600;margin-top:2px;">${inc.diagnostic}</div></div>` : ''}
-      ${inc.delay ? `<div style="margin-bottom:12px;font-size:12px;color:var(--gray-2)">⏱ Execution Time : <strong>${inc.delay}</strong></div>` : ''}
+      ${inc.diagnostic ? `<div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--gray-2);">Works Description</span><div style="font-size:13px;color:var(--navy);font-weight:600;margin-top:2px;">${escapeHtml(inc.diagnostic)}</div></div>` : ''}
+      ${inc.delay ? `<div style="margin-bottom:12px;font-size:12px;color:var(--gray-2)">⏱ Execution Time : <strong>${escapeHtml(inc.delay)}</strong></div>` : ''}
       <div class="devis-title">💰 Cost Estimation</div>
       <div class="devis-items">
         ${inc.devis.map(d => `
           <div class="devis-item">
-            <span>${d.description}</span>
-            <strong>${d.cost} AED</strong>
+            <span>${escapeHtml(d.description)}</span>
+            <strong>${escapeHtml(d.cost)} AED</strong>
           </div>
         `).join('')}
       </div>
@@ -2056,27 +2069,27 @@ function renderAdminCard(inc) {
             title="Delete this file">🗑️</button>
         </div>
       </div>
-      <div class="incident-title">${inc.equipment || 'Equipment non précisé'}</div>
+      <div class="incident-title">${escapeHtml(inc.equipment) || 'Equipment non précisé'}</div>
       ${inc.flowType === 'work_order' ? `
-      <div class="incident-sub">${inc.building || '—'}</div>
+      <div class="incident-sub">${escapeHtml(inc.building) || '—'}</div>
       <div class="incident-meta">
-        <div class="meta-item">📍 <strong>${inc.area || '—'}</strong></div>
-        ${inc.problem ? `<div class="meta-item">⚠️ <strong>${inc.problem.substring(0,40)}${inc.problem.length>40?'…':''}</strong></div>` : ''}
+        <div class="meta-item">📍 <strong>${escapeHtml(inc.area) || '—'}</strong></div>
+        ${inc.problem ? `<div class="meta-item">⚠️ <strong>${escapeHtml(inc.problem.substring(0,40))}${inc.problem.length>40?'…':''}</strong></div>` : ''}
       </div>
       ` : `
       <div class="summary-clean-list" style="margin-bottom:12px;">
-        ${inc.issueNum ? `<div class="summary-row"><span>Issue</span><strong>#${inc.issueNum}</strong></div>` : ''}
-        <div class="summary-row"><span>Building</span><strong>${inc.building || '—'}</strong></div>
-        <div class="summary-row"><span>Internal ref</span><strong>${(inc.ref && inc.ref !== 'N') ? inc.ref : 'N/A'}</strong></div>
-        <div class="summary-row"><span>Equipment</span><strong>${inc.equipment || '—'}</strong></div>
-        <div class="summary-row"><span>Brand</span><strong>${inc.brand || '—'}</strong></div>
-        ${inc.problem ? `<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Description</span><strong style="font-weight:600;">${inc.problem}</strong></div>` : ''}
+        ${inc.issueNum ? `<div class="summary-row"><span>Issue</span><strong>#${escapeHtml(inc.issueNum)}</strong></div>` : ''}
+        <div class="summary-row"><span>Building</span><strong>${escapeHtml(inc.building) || '—'}</strong></div>
+        <div class="summary-row"><span>Internal ref</span><strong>${(inc.ref && inc.ref !== 'N') ? escapeHtml(inc.ref) : 'N/A'}</strong></div>
+        <div class="summary-row"><span>Equipment</span><strong>${escapeHtml(inc.equipment) || '—'}</strong></div>
+        <div class="summary-row"><span>Brand</span><strong>${escapeHtml(inc.brand) || '—'}</strong></div>
+        ${inc.problem ? `<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Description</span><strong style="font-weight:600;">${escapeHtml(inc.problem)}</strong></div>` : ''}
       </div>
-      ${(inc.status === 'issuefixed' && inc.diagnostic) ? `<div style="margin-top:10px;background:#F5F7FA;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:var(--gray-2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🔧 Technician Notes</div><p style="font-size:13px;color:var(--navy);">${inc.diagnostic}</p></div>` : ''}
+      ${(inc.status === 'issuefixed' && inc.diagnostic) ? `<div style="margin-top:10px;background:#F5F7FA;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:var(--gray-2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🔧 Technician Notes</div><p style="font-size:13px;color:var(--navy);">${escapeHtml(inc.diagnostic)}</p></div>` : ''}
       `}
       ${photoHtml}
       ${devisHtml}
-      ${inc.remarks ? `<div style="margin-top:10px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#B45309;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">📝 Field Notes</div><p style="font-size:13px;color:#334466;white-space:pre-line;">${inc.remarks}</p></div>` : ''}
+      ${inc.remarks ? `<div style="margin-top:10px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#B45309;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">📝 Field Notes</div><p style="font-size:13px;color:#334466;white-space:pre-line;">${escapeHtml(inc.remarks)}</p></div>` : ''}
       ${actionsHtml}
     </div>
   `;
@@ -2841,8 +2854,8 @@ function openAdminEditForm(id) {
     <div class="form-card" style="border-left:4px solid var(--cyan);">
       <div class="form-card-title">📋 Dossier — ${inc.id}</div>
       <div class="incident-meta" style="margin-bottom:0">
-        <div class="meta-item">📍 <strong>${inc.building || '—'}</strong></div>
-        <div class="meta-item">🔧 <strong>${inc.equipment || '—'}</strong></div>
+        <div class="meta-item">📍 <strong>${escapeHtml(inc.building) || '—'}</strong></div>
+        <div class="meta-item">🔧 <strong>${escapeHtml(inc.equipment) || '—'}</strong></div>
       </div>
     </div>
 
@@ -2850,11 +2863,11 @@ function openAdminEditForm(id) {
       <div class="form-card-title">🔍 RAZ Diagnostic</div>
       <div class="field">
         <label>Works Description</label>
-        <textarea id="ae_diagnostic" style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:12px;width:100%;font-size:14px;font-family:var(--font);min-height:90px;outline:none;">${inc.diagnostic || ''}</textarea>
+        <textarea id="ae_diagnostic" style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:12px;width:100%;font-size:14px;font-family:var(--font);min-height:90px;outline:none;">${escapeHtml(inc.diagnostic) || ''}</textarea>
       </div>
       <div class="field">
         <label>Execution Time</label>
-        <input type="text" id="ae_delay" value="${inc.delay || ''}"
+        <input type="text" id="ae_delay" value="${escapeHtml(inc.delay) || ''}"
           style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:11px 14px;width:100%;font-size:14px;font-family:var(--font);outline:none;">
       </div>
       ${inc.photoDiag ? `
@@ -3170,14 +3183,14 @@ function renderTechDashboard() {
           </div>
           <span class="task-phase ${phaseCls}">${phaseLabel}</span>
         </div>
-        <div class="task-title">${inc.equipment || 'Equipment'}</div>
-        <div class="task-sub">${inc.building || '—'}</div>
-        ${inc.area ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:8px;">📍 ${inc.area.replace(/\s*—.*/, '').trim()}</div>` : ''}
-        ${inc.ref ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:4px;">Ref: ${inc.ref === 'N' ? 'N/A' : inc.ref}</div>` : ''}
+        <div class="task-title">${escapeHtml(inc.equipment) || 'Equipment'}</div>
+        <div class="task-sub">${escapeHtml(inc.building) || '—'}</div>
+        ${inc.area ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:8px;">📍 ${escapeHtml(inc.area.replace(/\s*—.*/, '').trim())}</div>` : ''}
+        ${inc.ref ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:4px;">Ref: ${inc.ref === 'N' ? 'N/A' : escapeHtml(inc.ref)}</div>` : ''}
         ${(inc.flowType||'issue') === 'issue' ? `
-        ${inc.brand ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:4px;">Brand: ${inc.brand}</div>` : ''}
+        ${inc.brand ? `<div style="font-size:11px;color:var(--gray-2);margin-bottom:4px;">Brand: ${escapeHtml(inc.brand)}</div>` : ''}
         ` : ''}
-        ${(inc.problem || inc.jobDescription) ? `<div style="font-size:12px;color:var(--navy);margin-bottom:8px;">${(inc.problem || inc.jobDescription).substring(0,90)}${(inc.problem || inc.jobDescription).length>90?'…':''}</div>` : ''}
+        ${(inc.problem || inc.jobDescription) ? `<div style="font-size:12px;color:var(--navy);margin-bottom:8px;">${escapeHtml((inc.problem || inc.jobDescription).substring(0,90))}${(inc.problem || inc.jobDescription).length>90?'…':''}</div>` : ''}
         ${buildDiagnosticCostBlock(inc)}
         <div class="task-progress">
           ${phases.map((p, i) => {
@@ -3772,7 +3785,7 @@ async function parseQuotationPDF(file) {
     const fields = document.getElementById('woPdfExtractedFields');
     fields.innerHTML = Object.entries(extracted)
       .filter(([k,v]) => v && k !== 'items')
-      .map(([k,v]) => `<div class="pdf-field-preview"><span>${k}</span><strong>${String(v).substring(0,40)}</strong></div>`)
+      .map(([k,v]) => `<div class="pdf-field-preview"><span>${escapeHtml(k)}</span><strong>${escapeHtml(String(v).substring(0,40))}</strong></div>`)
       .join('');
     document.getElementById('woPdfExtracted').style.display = 'block';
 
@@ -4089,7 +4102,7 @@ async function parsePDF(file) {
         const label = k === 'Issue #' ? 'Issue' : (k === 'Référence' ? 'Internal ref' : k);
         let value = k === 'Issue #' ? '#' + extracted[k] : String(extracted[k]).substring(0,40);
         if (k === 'Référence' && value.trim() === 'N') value = 'N/A';
-        return `<div class="pdf-field-preview"><span>${label}</span><strong>${value}</strong></div>`;
+        return `<div class="pdf-field-preview"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
       }).join('');
     document.getElementById('pdfExtracted').style.display = 'block';
 
@@ -4427,12 +4440,12 @@ function renderDiagnosticForm(inc) {
     <div class="form-card">
       <div class="form-card-title">📋 Intervention Summary</div>
       <div class="summary-clean-list">
-        ${inc.issueNum ? `<div class="summary-row"><span>Issue</span><strong>#${inc.issueNum}</strong></div>` : ''}
-        <div class="summary-row"><span>Building</span><strong>${inc.building || '—'}</strong></div>
-        <div class="summary-row"><span>Internal ref</span><strong>${(inc.ref && inc.ref !== 'N') ? inc.ref : 'N/A'}</strong></div>
-        <div class="summary-row"><span>Equipment</span><strong>${inc.equipment || '—'}</strong></div>
-        <div class="summary-row"><span>Brand</span><strong>${inc.brand || '—'}</strong></div>
-        ${inc.problem ? `<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Description</span><strong style="font-weight:600;">${inc.problem}</strong></div>` : ''}
+        ${inc.issueNum ? `<div class="summary-row"><span>Issue</span><strong>#${escapeHtml(inc.issueNum)}</strong></div>` : ''}
+        <div class="summary-row"><span>Building</span><strong>${escapeHtml(inc.building) || '—'}</strong></div>
+        <div class="summary-row"><span>Internal ref</span><strong>${(inc.ref && inc.ref !== 'N') ? escapeHtml(inc.ref) : 'N/A'}</strong></div>
+        <div class="summary-row"><span>Equipment</span><strong>${escapeHtml(inc.equipment) || '—'}</strong></div>
+        <div class="summary-row"><span>Brand</span><strong>${escapeHtml(inc.brand) || '—'}</strong></div>
+        ${inc.problem ? `<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Description</span><strong style="font-weight:600;">${escapeHtml(inc.problem)}</strong></div>` : ''}
       </div>
       ${inc.photoBefore ? `<img src="${inc.photoBefore}" alt="Problem photo" style="max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-top:12px;display:block;margin-left:auto;margin-right:auto;">` : ''}
     </div>
@@ -4441,11 +4454,11 @@ function renderDiagnosticForm(inc) {
       <div class="form-card-title">🔍 Diagnostic Description</div>
       <div class="field">
         <label>Required Works</label>
-        <textarea id="f_diagnostic" placeholder="Ex: Replace left bearing, severed power cable…">${inc.diagnostic || ''}</textarea>
+        <textarea id="f_diagnostic" placeholder="Ex: Replace left bearing, severed power cable…">${escapeHtml(inc.diagnostic) || ''}</textarea>
       </div>
       <div class="field">
         <label>Estimated Execution Time</label>
-        <input type="text" id="f_delay" placeholder="Ex: 2 days, 1 week…" value="${inc.delay || ''}">
+        <input type="text" id="f_delay" placeholder="Ex: 2 days, 1 week…" value="${escapeHtml(inc.delay) || ''}">
       </div>
     </div>
 
@@ -4580,11 +4593,11 @@ function renderClosingForm(inc) {
     <div class="form-card">
       <div class="form-card-title">✅ Works Completed</div>
       <div class="incident-meta" style="margin-bottom:0">
-        <div class="meta-item">📍 <strong>${inc.building}</strong></div>
-        <div class="meta-item">🔧 <strong>${inc.equipment}</strong></div>
+        <div class="meta-item">📍 <strong>${escapeHtml(inc.building)}</strong></div>
+        <div class="meta-item">🔧 <strong>${escapeHtml(inc.equipment)}</strong></div>
       </div>
-      ${inc.diagnostic ? `<p style="font-size:13px;color:var(--gray-2);margin-top:10px;">${inc.diagnostic}</p>` : ''}
-      ${inc.jobDescription ? `<div style="margin-top:10px;background:#F0FDFF;border-left:3px solid #00C8F0;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#009FC2;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🛠️ Job Description</div><p style="font-size:13px;color:#334466;white-space:pre-line;">${inc.jobDescription}</p></div>` : ''}
+      ${inc.diagnostic ? `<p style="font-size:13px;color:var(--gray-2);margin-top:10px;">${escapeHtml(inc.diagnostic)}</p>` : ''}
+      ${inc.jobDescription ? `<div style="margin-top:10px;background:#F0FDFF;border-left:3px solid #00C8F0;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#009FC2;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🛠️ Job Description</div><p style="font-size:13px;color:#334466;white-space:pre-line;">${escapeHtml(inc.jobDescription)}</p></div>` : ''}
     </div>
 
     <div class="form-card">
@@ -4615,7 +4628,7 @@ function renderClosingForm(inc) {
     <div class="form-card">
       <div class="form-card-title">📝 Remarks / Field Notes (Optional)</div>
       <textarea id="closingRemarks" rows="4" placeholder="Anything the Owner should know about this intervention…"
-        style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 14px;font-family:inherit;font-size:14px;color:#1A1D4E;resize:vertical;">${inc.remarks||''}</textarea>
+        style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 14px;font-family:inherit;font-size:14px;color:#1A1D4E;resize:vertical;">${escapeHtml(inc.remarks)||''}</textarea>
     </div>
 
     <button class="btn-submit green" onclick="submitClosing()">🏁 Declare intervention complete</button>
