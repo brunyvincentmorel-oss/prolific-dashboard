@@ -1085,6 +1085,22 @@ body {
   </div>
 </div>
 
+<!-- Manager Unlock Modal — réservé au Manager, débloque un rôle verrouillé sans attendre les 15 min -->
+<div class="modal-overlay" id="unlockModal">
+  <div class="modal-box" style="text-align:center;">
+    <h3>🔓 Unlock Access</h3>
+    <p style="margin-bottom:16px;">Which code do you want to unlock?</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-pin" onclick="unlockRoleFromUI('owner')">Owner</button>
+      <button class="btn-pin" onclick="unlockRoleFromUI('manager')">Manager</button>
+      <button class="btn-pin" onclick="unlockRoleFromUI('raz')">RAZ / Technician</button>
+    </div>
+    <div class="pin-error" id="unlockError" style="display:none;"></div>
+    <div id="unlockSuccess" style="display:none;color:#16803D;font-size:13px;font-weight:700;margin-top:12px;"></div>
+    <button class="btn-cancel" style="margin-top:12px;" onclick="document.getElementById('unlockModal').classList.remove('active')">Close</button>
+  </div>
+</div>
+
 <!-- Reset All Modal -->
 <div class="modal-overlay" id="resetAllModal">
   <div class="modal-box" style="text-align:center;">
@@ -1221,6 +1237,14 @@ body {
       <h2 id="techWelcomeName">👋 Hello, RAZ</h2>
       <p>Here are your interventions for today</p>
       <div class="task-count" id="techTaskCount">Loading...</div>
+    </div>
+
+    <!-- Visible uniquement pour le Manager (voir renderTechDashboard) -->
+    <div id="managerUnlockPanel" style="display:none;margin:0 20px 16px;">
+      <button class="btn-logout" style="width:100%;background:#FFF3E0;color:#B45309;border:1.5px solid #F59E0B;border-radius:10px;padding:10px;font-size:13px;font-weight:700;"
+        onclick="document.getElementById('unlockError').style.display='none';document.getElementById('unlockSuccess').style.display='none';document.getElementById('unlockModal').classList.add('active');">
+        🔓 Unlock a locked access
+      </button>
     </div>
 
     <!-- Tech Flow Tabs with badges -->
@@ -1361,10 +1385,30 @@ async function verifyPinAndLogin(pin, role) {
     const verifyPin = functionsClient.httpsCallable('verifyPin');
     const result = await verifyPin({pin, role});
     await firebase.auth().signInWithCustomToken(result.data.token);
-    return true;
+    return {ok: true};
   } catch (err) {
     console.error('verifyPin error:', err);
-    return false;
+    return {ok: false, message: err.message};
+  }
+}
+
+// Réservé au Manager (vérifié côté serveur) : débloque immédiatement un rôle
+// verrouillé après 5 échecs, sans attendre les 15 minutes.
+async function unlockRoleFromUI(targetRole) {
+  const errEl = document.getElementById('unlockError');
+  const successEl = document.getElementById('unlockSuccess');
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+  try {
+    const unlockRole = functionsClient.httpsCallable('unlockRole');
+    await unlockRole({targetRole});
+    const labels = {owner: 'Owner', manager: 'Manager', raz: 'RAZ / Technician'};
+    successEl.textContent = '✅ ' + (labels[targetRole] || targetRole) + ' access unlocked.';
+    successEl.style.display = 'block';
+  } catch (err) {
+    console.error('unlockRole error:', err);
+    errEl.textContent = err.message || 'Unable to unlock.';
+    errEl.style.display = 'block';
   }
 }
 
@@ -1646,11 +1690,14 @@ function hidePinModal() {
 
 async function checkPin() {
   const pin = document.getElementById('pinInput').value;
-  if (await verifyPinAndLogin(pin, 'owner')) {
+  const result = await verifyPinAndLogin(pin, 'owner');
+  if (result.ok) {
     hidePinModal();
     loginAdmin();
   } else {
-    document.getElementById('pinError').style.display = 'block';
+    const errEl = document.getElementById('pinError');
+    errEl.textContent = result.message || 'Incorrect code. Try again.';
+    errEl.style.display = 'block';
     document.getElementById('pinInput').value = '';
     document.getElementById('pinInput').focus();
   }
@@ -1700,7 +1747,8 @@ function showManagerPinModal() {
 
 async function checkManagerPin() {
   const pin = document.getElementById('managerPinInput').value;
-  if (await verifyPinAndLogin(pin, 'manager')) {
+  const result = await verifyPinAndLogin(pin, 'manager');
+  if (result.ok) {
     document.getElementById('managerPinModal').classList.remove('active');
     currentRole = 'manager';
     currentTechProfile = 'manager';
@@ -1709,7 +1757,9 @@ async function checkManagerPin() {
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Manager Interface</span>';
     renderTechDashboard();
   } else {
-    document.getElementById('managerPinError').style.display = 'block';
+    const errEl = document.getElementById('managerPinError');
+    errEl.textContent = result.message || 'Incorrect code. Try again.';
+    errEl.style.display = 'block';
     document.getElementById('managerPinInput').value = '';
     document.getElementById('managerPinInput').focus();
   }
@@ -1724,7 +1774,8 @@ function showRazPinModal() {
 
 async function checkRazPin() {
   const pin = document.getElementById('razPinInput').value;
-  if (await verifyPinAndLogin(pin, 'raz')) {
+  const result = await verifyPinAndLogin(pin, 'raz');
+  if (result.ok) {
     document.getElementById('razPinModal').classList.remove('active');
     currentRole = 'tech';
     currentTechProfile = 'raz';
@@ -1733,7 +1784,9 @@ async function checkRazPin() {
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Technician Interface</span>';
     renderTechDashboard();
   } else {
-    document.getElementById('razPinError').style.display = 'block';
+    const errEl = document.getElementById('razPinError');
+    errEl.textContent = result.message || 'Incorrect code. Try again.';
+    errEl.style.display = 'block';
     document.getElementById('razPinInput').value = '';
     document.getElementById('razPinInput').focus();
   }
@@ -3029,6 +3082,10 @@ function renderTechDashboard() {
   // Nom dynamique
   const nameEl = document.getElementById('techWelcomeName');
   if (nameEl) nameEl.textContent = currentTechProfile === 'manager' ? '👋 Hello, Manager' : '👋 Hello, RAZ';
+
+  // Le panneau de déblocage n'est visible que pour le Manager
+  const unlockPanel = document.getElementById('managerUnlockPanel');
+  if (unlockPanel) unlockPanel.style.display = currentTechProfile === 'manager' ? 'block' : 'none';
 
   const count = document.getElementById('techTaskCount');
   const flowLabel = currentTechFlow === 'work_order' ? 'Work Order' : 'Issue';
