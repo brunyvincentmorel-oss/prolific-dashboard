@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <style>
 :root {
   --cyan:    #00C8F0;
@@ -1587,6 +1588,33 @@ const db = firebase.database();
 const incidentsRef = db.ref('incidents');
 const functionsClient = firebase.app().functions('us-central1');
 
+// ── Notifications push : enregistrement de l'appareil ──
+// Chaque rôle a un uid fixe (prolific-owner/-manager/-raz, voir la Cloud
+// Function verifyPin) — le jeton FCM de CET appareil est stocké sous ce
+// même uid, écrasant un éventuel jeton précédent (un seul appareil actif
+// par rôle à la fois, cohérent avec le fonctionnement actuel de l'app).
+const FCM_VAPID_KEY = 'BB2cyQSem37VNrLJBxo7pDQmyDwjnjqZ-Bok6Y2mdXS4oJafghR2QDpuZ5disIjEEm02iu9-QcbqE5Uca47qfGs';
+
+async function registerPushToken(role) {
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration});
+    if (!token) return;
+
+    const uid = 'prolific-' + role;
+    await db.ref('pushTokens/' + uid).set(token);
+  } catch (err) {
+    // Non-bloquant : l'app doit continuer à fonctionner même sans notifications
+    // (permission refusée, navigateur non compatible, etc.)
+    console.error('registerPushToken error:', err);
+  }
+}
+
 // Cache local en mémoire, tenu à jour en direct par Firebase.
 // Toutes les fonctions existantes de l'app appellent getIncidents()/saveIncidents()
 // de façon synchrone — on garde donc exactement la même interface, mais les
@@ -1752,6 +1780,7 @@ function loginAdmin() {
   showScreen('admin');
   renderAdminDashboard();
   updateViewAsBar();
+  registerPushToken('owner');
 }
 
 function loginTech(profile = 'raz') {
@@ -1877,6 +1906,7 @@ async function checkManagerPin() {
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Manager Interface</span>';
     renderTechDashboard();
     updateViewAsBar();
+    registerPushToken('manager');
   } else {
     const errEl = document.getElementById('managerPinError');
     errEl.textContent = result.message || 'Incorrect code. Try again.';
@@ -1907,6 +1937,7 @@ async function checkRazPin() {
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Technician Interface</span>';
     renderTechDashboard();
     updateViewAsBar();
+    registerPushToken('raz');
   } else {
     const errEl = document.getElementById('razPinError');
     errEl.textContent = result.message || 'Incorrect code. Try again.';
