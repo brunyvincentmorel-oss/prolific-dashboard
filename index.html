@@ -1167,6 +1167,8 @@ body {
   </div>
 
   <div class="admin-main">
+    <div id="adminViewAsBar"></div>
+
     <!-- Flow Toggle : Issues / Work Orders -->
     <div class="flow-toggle" id="flowToggle">
       <button class="flow-toggle-btn active" id="flow-btn-issue" onclick="switchFlow('issue')">
@@ -1233,6 +1235,7 @@ body {
   </div>
 
   <div class="tech-main">
+    <div id="techViewAsBar" style="margin:0 20px;"></div>
     <div class="tech-welcome">
       <h2 id="techWelcomeName">👋 Hello, RAZ</h2>
       <p>Here are your interventions for today</p>
@@ -1549,6 +1552,12 @@ function updateBuildingDropdown(areaLabel) {
 const RAZ_WHATSAPP = ''; // Numéro RAZ avec indicatif ex: 971501234567
 
 let currentRole = null;
+// Identité réellement connectée (via PIN) — ne change JAMAIS pendant un mode
+// "voir comme un autre rôle". currentRole/currentTechProfile, eux, suivent
+// l'affichage courant (réel ou emprunté). Sert à la fois à revenir à sa
+// propre vue et à tracer qui a réellement agi (voir saveIncidents).
+let actualRole = null;
+let actualTechProfile = null;
 let currentIncidentId = null;
 let currentFormPhase = 0;
 let formPhotoDataURL = null;
@@ -1590,6 +1599,27 @@ function getIncidents() {
 }
 
 function saveIncidents(incidents) {
+  // Traçabilité : si on agit actuellement "en tant que" un autre rôle
+  // (viewAs), on tamponne chaque intervention réellement modifiée avec qui
+  // a vraiment fait l'action — pour rester honnête en cas de litige, sans
+  // jamais faire croire que c'est le rôle emprunté qui a agi.
+  if (isImpersonating()) {
+    const prevById = {};
+    incidentsCache.forEach(i => { if (i && i.id) prevById[i.id] = i; });
+    incidents.forEach(inc => {
+      if (!inc || !inc.id) return;
+      const prev = prevById[inc.id];
+      if (!prev || JSON.stringify(prev) !== JSON.stringify(inc)) {
+        inc.impersonationLog = inc.impersonationLog || [];
+        inc.impersonationLog.push({
+          ts: new Date().toISOString(),
+          by: roleLabel(actualRole, actualTechProfile),
+          actingAs: roleLabel(currentRole, currentTechProfile),
+        });
+      }
+    });
+  }
+
   // Mise à jour optimiste locale : l'écran courant s'actualise instantanément,
   // sans attendre l'aller-retour réseau.
   incidentsCache = incidents;
@@ -1666,6 +1696,8 @@ function showScreen(id) {
 
 function logout() {
   currentRole = null;
+  actualRole = null;
+  actualTechProfile = null;
   showScreen('login');
 }
 
@@ -1715,8 +1747,11 @@ document.addEventListener('keydown', e => {
 
 function loginAdmin() {
   currentRole = 'admin';
+  actualRole = 'admin';
+  actualTechProfile = null;
   showScreen('admin');
   renderAdminDashboard();
+  updateViewAsBar();
 }
 
 function loginTech(profile = 'raz') {
@@ -1738,6 +1773,89 @@ function loginTech(profile = 'raz') {
   renderTechDashboard();
 }
 
+/* ══════════════════════════════════════════════
+   VOIR COMME UN AUTRE RÔLE (Owner ↔ Manager, tous deux → RAZ)
+   currentRole/currentTechProfile pilotent l'affichage courant (réel ou
+   emprunté) — actualRole/actualTechProfile gardent la vraie identité
+   connectée, utilisée pour revenir à sa vue et pour la traçabilité des
+   actions (voir saveIncidents). RAZ n'a accès à aucun de ces boutons.
+══════════════════════════════════════════════ */
+function viewAs(role) {
+  if (role === 'admin') {
+    currentRole = 'admin';
+    showScreen('admin');
+    renderAdminDashboard();
+  } else {
+    currentRole = (role === 'raz') ? 'tech' : 'manager';
+    currentTechProfile = role;
+    showScreen('tech');
+    const titleEl = document.getElementById('techHeaderTitle');
+    if (titleEl) titleEl.innerHTML = 'My Tasks<span>' + (role === 'manager' ? 'Manager' : 'Technician') + ' Interface</span>';
+    renderTechDashboard();
+  }
+  updateViewAsBar();
+}
+
+function exitViewAs() {
+  currentRole = actualRole;
+  currentTechProfile = actualTechProfile;
+  if (actualRole === 'admin') {
+    showScreen('admin');
+    renderAdminDashboard();
+  } else {
+    showScreen('tech');
+    const titleEl = document.getElementById('techHeaderTitle');
+    if (titleEl) titleEl.innerHTML = 'My Tasks<span>' + (actualTechProfile === 'manager' ? 'Manager' : 'Technician') + ' Interface</span>';
+    renderTechDashboard();
+  }
+  updateViewAsBar();
+}
+
+function isImpersonating() {
+  if (actualRole === null) return false;
+  if (actualRole === 'admin') return currentRole !== 'admin';
+  return currentRole !== actualRole || currentTechProfile !== actualTechProfile;
+}
+
+function roleLabel(role, techProfile) {
+  if (role === 'admin') return 'Owner';
+  if (techProfile === 'manager') return 'Manager';
+  return 'RAZ / Technician';
+}
+
+function updateViewAsBar() {
+  const impersonating = isImpersonating();
+
+  ['adminViewAsBar', 'techViewAsBar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    if (impersonating) {
+      el.innerHTML = `
+        <div style="background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:#92400E;font-weight:700;">👁️ Viewing as ${roleLabel(currentRole, currentTechProfile)} — you are ${roleLabel(actualRole, actualTechProfile)}</span>
+          <button class="btn-logout" style="background:#F59E0B;color:white;padding:6px 12px;width:auto;border-radius:8px;font-size:12px;font-weight:700;" onclick="exitViewAs()">Return to my view</button>
+        </div>`;
+    } else if (actualRole === 'admin') {
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--gray-2);">👁️ View as:</span>
+          <button class="btn-cancel" style="width:auto;padding:6px 12px;font-size:12px;" onclick="viewAs('manager')">Manager</button>
+          <button class="btn-cancel" style="width:auto;padding:6px 12px;font-size:12px;" onclick="viewAs('raz')">RAZ / Technician</button>
+        </div>`;
+    } else if (actualTechProfile === 'manager') {
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--gray-2);">👁️ View as:</span>
+          <button class="btn-cancel" style="width:auto;padding:6px 12px;font-size:12px;" onclick="viewAs('admin')">Owner</button>
+          <button class="btn-cancel" style="width:auto;padding:6px 12px;font-size:12px;" onclick="viewAs('raz')">RAZ / Technician</button>
+        </div>`;
+    } else {
+      el.innerHTML = ''; // RAZ (identité réelle) : aucun bouton
+    }
+  });
+}
+
 function showManagerPinModal() {
   document.getElementById('managerPinInput').value = '';
   document.getElementById('managerPinError').style.display = 'none';
@@ -1752,10 +1870,13 @@ async function checkManagerPin() {
     document.getElementById('managerPinModal').classList.remove('active');
     currentRole = 'manager';
     currentTechProfile = 'manager';
+    actualRole = 'manager';
+    actualTechProfile = 'manager';
     showScreen('tech');
     const titleEl = document.getElementById('techHeaderTitle');
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Manager Interface</span>';
     renderTechDashboard();
+    updateViewAsBar();
   } else {
     const errEl = document.getElementById('managerPinError');
     errEl.textContent = result.message || 'Incorrect code. Try again.';
@@ -1779,10 +1900,13 @@ async function checkRazPin() {
     document.getElementById('razPinModal').classList.remove('active');
     currentRole = 'tech';
     currentTechProfile = 'raz';
+    actualRole = 'tech';
+    actualTechProfile = 'raz';
     showScreen('tech');
     const titleEl = document.getElementById('techHeaderTitle');
     if (titleEl) titleEl.innerHTML = 'My Tasks<span>Technician Interface</span>';
     renderTechDashboard();
+    updateViewAsBar();
   } else {
     const errEl = document.getElementById('razPinError');
     errEl.textContent = result.message || 'Incorrect code. Try again.';
@@ -2143,6 +2267,7 @@ function renderAdminCard(inc) {
       ${photoHtml}
       ${devisHtml}
       ${inc.remarks ? `<div style="margin-top:10px;background:#FFFBEB;border-left:3px solid #F59E0B;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#B45309;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">📝 Field Notes</div><p style="font-size:13px;color:#334466;white-space:pre-line;">${escapeHtml(inc.remarks)}</p></div>` : ''}
+      ${(inc.impersonationLog && inc.impersonationLog.length) ? `<div style="margin-top:10px;background:#FEF2F2;border-left:3px solid #DC2626;border-radius:6px;padding:10px 12px;"><div style="font-size:10px;font-weight:700;color:#B91C1C;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">🔀 Edited via "View as"</div>${inc.impersonationLog.map(l => `<p style="font-size:12px;color:#7F1D1D;margin:2px 0;">${escapeHtml(l.by)} acting as ${escapeHtml(l.actingAs)} — ${new Date(l.ts).toLocaleString('fr-FR')}</p>`).join('')}</div>` : ''}
       ${actionsHtml}
     </div>
   `;
@@ -3083,9 +3208,12 @@ function renderTechDashboard() {
   const nameEl = document.getElementById('techWelcomeName');
   if (nameEl) nameEl.textContent = currentTechProfile === 'manager' ? '👋 Hello, Manager' : '👋 Hello, RAZ';
 
-  // Le panneau de déblocage n'est visible que pour le Manager
+  // Le panneau de déblocage n'est visible que pour le VRAI Manager — vérifié
+  // côté serveur sur l'identité réelle (actualTechProfile), pas sur la vue
+  // empruntée : un Owner qui "voit comme" Manager ne doit pas voir un bouton
+  // qui échouerait de toute façon (unlockRole vérifie le vrai rôle connecté).
   const unlockPanel = document.getElementById('managerUnlockPanel');
-  if (unlockPanel) unlockPanel.style.display = currentTechProfile === 'manager' ? 'block' : 'none';
+  if (unlockPanel) unlockPanel.style.display = actualTechProfile === 'manager' ? 'block' : 'none';
 
   const count = document.getElementById('techTaskCount');
   const flowLabel = currentTechFlow === 'work_order' ? 'Work Order' : 'Issue';
