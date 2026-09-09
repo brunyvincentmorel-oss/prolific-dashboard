@@ -1690,6 +1690,15 @@ function attachIncidentsListener() {
   }, (err) => {
     console.error('Firebase read error:', err);
     showToast('⚠️ Unable to connect to shared database', 'error');
+    // Une session persistée d'un précédent rôle peut brièvement redémarrer
+    // au chargement avant d'être remplacée par la connexion anonyme — la
+    // lecture démarrée entre-temps échoue alors en permission refusée. Sans
+    // ce reset, le verrou restait bloqué à "déjà tenté" pour toujours,
+    // empêchant les données de charger même après une vraie connexion par
+    // PIN réussie ensuite. On détache l'écoute en échec et on autorise un
+    // nouvel essai au prochain rôle valide détecté.
+    incidentsRef.off('value');
+    incidentsListenerAttached = false;
   });
 }
 
