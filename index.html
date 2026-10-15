@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <style>
 :root {
@@ -767,6 +768,21 @@ body {
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
+
+/* Multi-photo picker (max 5 taken + 5 uploaded per spot) */
+.pp-count { font-weight: 500; opacity: .7; margin-left: 6px; font-size: 12px; }
+.pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 10px; }
+.pp-grid:empty { display: none; }
+.pp-thumb { position: relative; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--gray-1); background: #F0F4FA; aspect-ratio: 1 / 1; }
+.pp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-thumb.pp-uploading img { opacity: .45; }
+.pp-thumb .pp-remove { position: absolute; top: 4px; right: 4px; background: rgba(220,38,38,.85); border: none; border-radius: 50%; width: 24px; height: 24px; color: #fff; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pp-thumb .pp-badge { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; border-radius: 6px; padding: 1px 5px; }
+.pp-disabled { opacity: .45; cursor: not-allowed !important; }
+.photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.photo-gallery img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; background: #F0F4FA; cursor: zoom-in; display: block; }
+#photoViewer { position: fixed; inset: 0; z-index: 20000; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+#photoViewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
 
 /* Submit button */
 .btn-submit {
@@ -1588,6 +1604,273 @@ const db = firebase.database();
 const incidentsRef = db.ref('incidents');
 const functionsClient = firebase.app().functions('us-central1');
 
+// ══════════════════════════════════════════════
+// PHOTOS MULTIPLES — max 5 photos prises (caméra) + 5 importées (galerie)
+// par emplacement. Les nouvelles photos sont envoyées dans Firebase Storage
+// (seule l'URL est stockée dans la base temps réel, qui reste légère) ;
+// les anciennes photos intégrées (photoBefore/photoDiag/photoAfter en
+// base64) restent lisibles via getPhotos().
+// ══════════════════════════════════════════════
+const MAX_PHOTOS_PER_SOURCE = 5;
+const storageClient = firebase.storage();
+storageClient.setMaxUploadRetryTime(30000);
+const photoPickers = {};
+
+function resizeImageFile(file, maxW, quality) {
+  maxW = maxW || 1200; quality = quality || 0.75;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('unreadable image'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = h * maxW / w; w = maxW; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPhotoDataURL(dataURL) {
+  const name = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.jpg';
+  const ref = storageClient.ref('incident-photos/' + name);
+  await ref.putString(dataURL, 'data_url', { contentType: 'image/jpeg' });
+  return ref.getDownloadURL();
+}
+
+function pickerState(key) {
+  return photoPickers[key] || (photoPickers[key] = { items: [], upload: true });
+}
+
+function photoPickerHtml(key) {
+  const max = MAX_PHOTOS_PER_SOURCE;
+  return `
+      <label for="pp_cam_${key}" class="btn-camera" id="pp_camLabel_${key}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Take a photo</span><span class="pp-count" id="pp_camCount_${key}">0/${max}</span>
+      </label>
+      <input type="file" id="pp_cam_${key}" accept="image/*" capture="environment" style="display:none">
+      <label for="pp_gal_${key}" id="pp_galLabel_${key}" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+        <span>Add from gallery / file</span><span class="pp-count" id="pp_galCount_${key}">0/${max}</span>
+      </label>
+      <input type="file" id="pp_gal_${key}" accept="image/*" multiple style="display:none">
+      <div class="pp-grid" id="pp_grid_${key}"></div>`;
+}
+
+function photoPickerInit(key, opts) {
+  photoPickers[key] = { items: [], upload: !(opts && opts.upload === false) };
+  const cam = document.getElementById('pp_cam_' + key);
+  const gal = document.getElementById('pp_gal_' + key);
+  if (cam) cam.addEventListener('change', function() { pickerAddFiles(key, 'camera', this); });
+  if (gal) gal.addEventListener('change', function() { pickerAddFiles(key, 'gallery', this); });
+  pickerRender(key);
+}
+
+function pickerCount(key, source) {
+  return pickerState(key).items.filter(i => i.source === source).length;
+}
+
+async function pickerAddFiles(key, source, input) {
+  const files = Array.from(input.files || []).filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name || ''));
+  input.value = '';
+  const kindLabel = source === 'camera' ? 'taken' : 'uploaded';
+  for (const file of files) {
+    if (pickerCount(key, source) >= MAX_PHOTOS_PER_SOURCE) {
+      showToast('⚠️ Maximum ' + MAX_PHOTOS_PER_SOURCE + ' ' + kindLabel + ' photos reached', 'error');
+      break;
+    }
+    let src;
+    try { src = await resizeImageFile(file); }
+    catch (e) { showToast('⚠️ Could not read this photo', 'error'); continue; }
+    if (pickerCount(key, source) >= MAX_PHOTOS_PER_SOURCE) {
+      showToast('⚠️ Maximum ' + MAX_PHOTOS_PER_SOURCE + ' ' + kindLabel + ' photos reached', 'error');
+      break;
+    }
+    const st = pickerState(key);
+    const item = { src, source, url: null, status: st.upload ? 'uploading' : 'local' };
+    st.items.push(item);
+    pickerRender(key);
+    if (st.upload) {
+      uploadPhotoDataURL(src)
+        .then(url => { item.url = url; item.status = 'done'; })
+        .catch(err => { console.error('Photo upload failed, keeping it inline:', err); item.status = 'failed'; })
+        .then(() => pickerRender(key));
+    }
+  }
+}
+
+function pickerRemove(key, idx) {
+  const st = pickerState(key);
+  const item = st.items[idx];
+  if (!item) return;
+  st.items.splice(idx, 1);
+  if (item.url) { try { storageClient.refFromURL(item.url).delete().catch(() => {}); } catch (e) {} }
+  pickerRender(key);
+}
+
+function pickerRender(key) {
+  const st = pickerState(key);
+  const grid = document.getElementById('pp_grid_' + key);
+  const max = MAX_PHOTOS_PER_SOURCE;
+  [['camera', 'cam'], ['gallery', 'gal']].forEach(([source, short]) => {
+    const n = pickerCount(key, source);
+    const cnt = document.getElementById('pp_' + short + 'Count_' + key);
+    const lab = document.getElementById('pp_' + short + 'Label_' + key);
+    const inp = document.getElementById('pp_' + short + '_' + key);
+    if (cnt) cnt.textContent = n + '/' + max;
+    if (lab) lab.classList.toggle('pp-disabled', n >= max);
+    if (inp) inp.disabled = n >= max;
+  });
+  if (!grid) return;
+  grid.innerHTML = st.items.map((it, i) => `
+    <div class="pp-thumb${it.status === 'uploading' ? ' pp-uploading' : ''}">
+      <img src="${it.src}" alt="Photo ${i + 1}">
+      <span class="pp-badge">${it.source === 'camera' ? '📷' : '🖼️'}${it.status === 'uploading' ? ' …' : ''}</span>
+      <button type="button" class="pp-remove" onclick="pickerRemove('${key}', ${i})">✕</button>
+    </div>`).join('');
+}
+
+function pickerBusy(key) {
+  return pickerState(key).items.some(i => i.status === 'uploading');
+}
+
+// Valeurs à enregistrer : URL Storage si l'envoi a réussi, sinon la photo intégrée (secours).
+function pickerPhotos(key) {
+  return pickerState(key).items.map(i => i.url || i.src);
+}
+
+function pickerLocal(key) {
+  return pickerState(key).items.map(i => i.src);
+}
+
+// Toutes les photos d'une étape (kind = 'Before' | 'Diag' | 'After'),
+// nouveau format (photosX = tableau) ou ancien format (photoX = une seule).
+function getPhotos(inc, kind) {
+  if (!inc) return [];
+  const arr = inc['photos' + kind];
+  if (Array.isArray(arr)) { const a = arr.filter(Boolean); if (a.length) return a; }
+  else if (arr && typeof arr === 'object') { const a = Object.values(arr).filter(Boolean); if (a.length) return a; }
+  const single = inc['photo' + kind];
+  return single ? [single] : [];
+}
+
+function photoGalleryHtml(urls, singleStyle) {
+  if (!urls || !urls.length) return '';
+  if (urls.length === 1) {
+    return `<img src="${escapeHtml(urls[0])}" onclick="openPhotoViewer(this.src)" style="${singleStyle || ''}cursor:zoom-in;" alt="Photo">`;
+  }
+  return '<div class="photo-gallery">' + urls.map((u, i) => `<img src="${escapeHtml(u)}" onclick="openPhotoViewer(this.src)" alt="Photo ${i + 1}">`).join('') + '</div>';
+}
+
+function openPhotoViewer(src) {
+  const old = document.getElementById('photoViewer');
+  if (old) old.remove();
+  const v = document.createElement('div');
+  v.id = 'photoViewer';
+  v.onclick = () => v.remove();
+  const img = document.createElement('img');
+  img.src = src;
+  v.appendChild(img);
+  document.body.appendChild(v);
+}
+
+// ── Photos dans les PDF : jsPDF a besoin de données intégrées (base64), pas d'URL ──
+const photoDataCache = {};
+function pdfPhoto(u) {
+  if (!u) return null;
+  if (String(u).startsWith('data:')) return u;
+  return photoDataCache[u] || null;
+}
+async function ensurePhotosCached(urls) {
+  await Promise.all((urls || []).map(async u => {
+    if (!u || String(u).startsWith('data:') || photoDataCache[u]) return;
+    try {
+      const blob = await (await fetch(u)).blob();
+      photoDataCache[u] = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => rej(r.error);
+        r.readAsDataURL(blob);
+      });
+    } catch (e) { console.error('Could not load photo for PDF:', e); }
+  }));
+}
+async function ensureIncidentPhotosCached(id) {
+  const inc = getIncidents().find(i => i.id === id);
+  if (!inc) return;
+  await ensurePhotosCached([].concat(getPhotos(inc, 'Before'), getPhotos(inc, 'Diag'), getPhotos(inc, 'After')));
+}
+function incidentAnnexItems(inc, shownUrl) {
+  const out = [];
+  [['After', 'After repair'], ['Diag', 'Diagnostic'], ['Before', 'Problem']].forEach(([k, lab]) => {
+    const list = getPhotos(inc, k);
+    list.forEach((u, i) => {
+      if (u === shownUrl) return;
+      const d = pdfPhoto(u);
+      if (d) out.push({ label: lab + (list.length > 1 ? ' ' + (i + 1) + '/' + list.length : ''), data: d });
+    });
+  });
+  return out;
+}
+// Ajoute des pages "PHOTOS" (6 par page) à la fin d'un PDF. Retourne le nombre de pages ajoutées.
+function appendPhotoAnnex(doc, items, W, H, margin, opts) {
+  items = (items || []).filter(it => it && it.data);
+  if (!items.length) return 0;
+  const perPage = 6, cols = 2, gap = 6;
+  const cellW = (W - margin * 2 - gap) / cols, cellH = 70, top = 36;
+  const pages = Math.ceil(items.length / perPage);
+  const footer = (n) => {
+    doc.setFillColor(0,200,240); doc.rect(0, H-12, W, 12, 'F');
+    doc.setTextColor(13,14,43); doc.setFontSize(7);
+    doc.setFont('helvetica','bold'); doc.text('PROLIFIC', margin, H-4.5);
+    doc.setFont('helvetica','normal'); doc.text('Photos — page ' + n + '/' + pages, W-margin, H-4.5, {align:'right'});
+  };
+  items.forEach((it, i) => {
+    const pi = i % perPage;
+    if (pi === 0) {
+      doc.addPage();
+      doc.setFillColor(13,14,43); doc.rect(0, 0, W, 22, 'F');
+      doc.setTextColor(0,200,240); doc.setFontSize(13); doc.setFont('helvetica','bold');
+      doc.text('PHOTOS', margin, 14);
+      footer(Math.floor(i / perPage) + 1);
+    }
+    const col = pi % cols, row = Math.floor(pi / cols);
+    const x = margin + col * (cellW + gap), y = top + row * (cellH + 12);
+    doc.setTextColor(90,100,120); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.text(String(it.label || ''), x, y - 2);
+    doc.setDrawColor(180,200,220); doc.setLineWidth(0.4); doc.rect(x, y, cellW, cellH);
+    let iw = cellW - 4, ih = cellH - 4;
+    try {
+      const p = doc.getImageProperties(it.data);
+      const ar = p.height / p.width;
+      if (ih / iw > ar) ih = iw * ar; else iw = ih / ar;
+    } catch (e) {}
+    try { doc.addImage(it.data, 'JPEG', x + (cellW - iw) / 2, y + (cellH - ih) / 2, iw, ih); } catch (e) {}
+  });
+  if (opts && opts.fixPageLabel) {
+    const last = doc.getNumberOfPages();
+    doc.setPage(1);
+    doc.setFillColor(0,200,240); doc.rect(W - margin - 30, H - 12, 30 + margin, 12, 'F');
+    doc.setTextColor(13,14,43); doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.text('Page 1/' + (1 + pages), W-margin, H-4.5, {align:'right'});
+    doc.setPage(last);
+  }
+  return pages;
+}
+
 // ── Notifications push : enregistrement de l'appareil ──
 // Chaque rôle a un uid fixe (prolific-owner/-manager/-raz, voir la Cloud
 // Function verifyPin) — le jeton FCM de CET appareil est stocké sous ce
@@ -2263,13 +2546,9 @@ function renderAdminCard(inc) {
     `;
   }
 
-  const photoHtml = inc.photoAfter
-    ? `<img src="${inc.photoAfter}" style="max-width:100%;height:auto;max-height:280px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" alt="Photo after">`
-    : (inc.photoDiag
-    ? `<img src="${inc.photoDiag}" style="max-width:100%;height:auto;max-height:280px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" alt="Diagnostic photo">`
-    : (inc.photoBefore
-    ? `<img src="${inc.photoBefore}" style="max-width:100%;height:auto;max-height:280px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" alt="Photo before">`
-    : ''));
+  const _stagePhotos = getPhotos(inc, 'After').length ? getPhotos(inc, 'After')
+    : (getPhotos(inc, 'Diag').length ? getPhotos(inc, 'Diag') : getPhotos(inc, 'Before'));
+  const photoHtml = photoGalleryHtml(_stagePhotos, 'max-width:100%;height:auto;max-height:280px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;');
 
   return `
     <div class="incident-card status-${inc.status}">
@@ -2434,7 +2713,12 @@ function deleteIncident(id) {
   renderAdminDashboard();
 }
 
-function generateDevisPDF(id) {
+async function generateDevisPDF(id) {
+  await ensureIncidentPhotosCached(id);
+  return generateDevisPDFSync(id);
+}
+
+function generateDevisPDFSync(id) {
   const incidents = getIncidents();
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
@@ -2564,7 +2848,8 @@ function generateDevisPDF(id) {
   doc.rect(margin + photoW + 4, y, descW, remainH);
 
   // Photo si disponible (photo de diagnostic RAZ en priorité, sinon photo initiale du signalement)
-  const issuePhoto = inc.photoDiag || inc.photoBefore;
+  const issueUrl = getPhotos(inc, 'Diag')[0] || getPhotos(inc, 'Before')[0] || null;
+  const issuePhoto = pdfPhoto(issueUrl);
   if (issuePhoto) {
     try {
       const imgY = y + 4;
@@ -2589,6 +2874,7 @@ function generateDevisPDF(id) {
   doc.text('Issue_ID_CODE_DATE_V001', margin, H-10);
 
   const filename = 'Issue_' + issueNum + '_' + (inc.ref||inc.id) + '_' + (inc.date||'').replace(/\//g,'-') + '.pdf';
+  appendPhotoAnnex(doc, incidentAnnexItems(inc, issueUrl), W, H, margin);
   doc.save(filename);
   showToast('✅ PDF généré !', 'success');
 }
@@ -2623,7 +2909,12 @@ function sendDevisEmail(id) {
 }
 
 
-function generateClosurePDF(id, returnBlob = false) {
+async function generateClosurePDF(id, returnBlob = false) {
+  await ensureIncidentPhotosCached(id);
+  return generateClosurePDFSync(id, returnBlob);
+}
+
+function generateClosurePDFSync(id, returnBlob = false) {
   const incidents = getIncidents();
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
@@ -2700,7 +2991,8 @@ function generateClosurePDF(id, returnBlob = false) {
   doc.rect(margin+photoW+4,y,descW,sectionH);
 
   // Photo après travaux en priorité, sinon diagnostic RAZ, sinon photo initiale
-  const closurePhoto = inc.photoAfter || inc.photoDiag || inc.photoBefore || null;
+  const closureUrl = getPhotos(inc, 'After')[0] || getPhotos(inc, 'Diag')[0] || getPhotos(inc, 'Before')[0] || null;
+  const closurePhoto = pdfPhoto(closureUrl);
   if (closurePhoto) {
     try {
       const img2 = new Image();
@@ -2753,6 +3045,7 @@ function generateClosurePDF(id, returnBlob = false) {
 
   const fname='Closure_'+issueNum+'_'+(inc.building||'').replace(/\s+/g,'-').substring(0,20)+'.pdf';
 
+  appendPhotoAnnex(doc, incidentAnnexItems(inc, closureUrl), W, H, margin);
   if (returnBlob) return { blob: doc.output('blob'), fname };
   doc.save(fname);
   showToast('✅ Closure PDF downloaded!', 'success');
@@ -2762,7 +3055,7 @@ async function shareClosurePDF(id, via) {
   const incidents = getIncidents();
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
-  const result = generateClosurePDF(id, true);
+  const result = await generateClosurePDF(id, true);
   if (!result) return;
 
   if (via === 'whatsapp') {
@@ -2850,7 +3143,12 @@ function showClosureModal(id) {
   modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-function generateInvoicePDF(id, returnBlob = false) {
+async function generateInvoicePDF(id, returnBlob = false) {
+  await ensureIncidentPhotosCached(id);
+  return generateInvoicePDFSync(id, returnBlob);
+}
+
+function generateInvoicePDFSync(id, returnBlob = false) {
   const incidents = getIncidents();
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
@@ -2940,7 +3238,8 @@ function generateInvoicePDF(id, returnBlob = false) {
   }
 
   // ── Photo : après travaux en priorité, sinon photo de diagnostic, sinon photo initiale ──
-  const reportPhoto = inc.photoAfter || inc.photoDiag || inc.photoBefore || null;
+  const reportUrl = getPhotos(inc, 'After')[0] || getPhotos(inc, 'Diag')[0] || getPhotos(inc, 'Before')[0] || null;
+  const reportPhoto = pdfPhoto(reportUrl);
   if (reportPhoto) {
     const maxImgH = Math.min(H - y - 30, 85);
     if (maxImgH > 20) {
@@ -2971,6 +3270,7 @@ function generateInvoicePDF(id, returnBlob = false) {
 
   const fname = 'Report-'+inc.id+'-'+(inc.building||'').replace(/\s+/g,'-').substring(0,20)+'.pdf';
 
+  appendPhotoAnnex(doc, incidentAnnexItems(inc, reportUrl), W, H, margin, { fixPageLabel: true });
   if (returnBlob) return { blob: doc.output('blob'), fname };
   doc.save(fname);
   showToast('✅ PDF downloaded!', 'success');
@@ -2983,7 +3283,7 @@ async function shareInvoicePDFNative(id) {
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
 
-  const result = generateInvoicePDF(id, true);
+  const result = await generateInvoicePDF(id, true);
   if (!result) return;
 
   const file = new File([result.blob], result.fname, { type: 'application/pdf' });
@@ -3016,7 +3316,7 @@ async function shareInvoice(id, via) {
   const inc = incidents.find(i => i.id === id);
   if (!inc) return;
 
-  const result = generateInvoicePDF(id, true);
+  const result = await generateInvoicePDF(id, true);
   if (!result) return;
   const file = new File([result.blob], result.fname, { type: 'application/pdf' });
   const total = (inc.devis||[]).reduce((s,d)=>s+(parseFloat(d.cost)||0),0);
@@ -3088,11 +3388,11 @@ function openAdminEditForm(id) {
         <input type="text" id="ae_delay" value="${escapeHtml(inc.delay) || ''}"
           style="background:var(--gray-bg);border:1.5px solid var(--gray-1);border-radius:8px;padding:11px 14px;width:100%;font-size:14px;font-family:var(--font);outline:none;">
       </div>
-      ${inc.photoDiag ? `
+      ${getPhotos(inc, 'Diag').length ? `
       <div class="field">
         <label style="color:#009FC2;font-weight:700;">📷 Diagnostic Photo (from RAZ)</label>
         <div style="position:relative;border-radius:8px;overflow:hidden;border:2px solid #00C8F0;margin-top:4px;">
-          <img src="${inc.photoDiag}" style="max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;display:block;margin-left:auto;margin-right:auto;" alt="Diagnostic photo">
+          ${photoGalleryHtml(getPhotos(inc, 'Diag'), 'max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;display:block;margin-left:auto;margin-right:auto;')}
           <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.5));padding:8px;font-size:10px;color:white;font-weight:600;">Photo submitted by RAZ</div>
         </div>
       </div>` : `
@@ -3566,25 +3866,7 @@ function renderPhase0() {
     <!-- ── PHOTO ── -->
     <div class="form-card">
       <div class="form-card-title">📷 Problem Photo</div>
-      <label for="cameraInputForm" class="btn-camera">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        Take / choose a photo
-      </label>
-      <input type="file" id="cameraInputForm" accept="image/*" capture="environment">
-      <label for="fileInputForm0" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
-        Add a file
-      </label>
-      <input type="file" id="fileInputForm0" accept="image/*" style="display:none">
-      <div class="photo-thumb" id="photoThumb0">
-        <img id="photoImg0" src="" alt="">
-        <button class="remove-btn" onclick="removePhoto(0)">✕</button>
-      </div>
+      ${photoPickerHtml('form')}
     </div>
 
     <!-- Toggle destinataire -->
@@ -3610,13 +3892,7 @@ function renderPhase0() {
     parsePDF(this.files[0]);
   });
 
-  // Camera listener
-  document.getElementById('cameraInputForm').addEventListener('change', function() {
-    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
-  });
-  document.getElementById('fileInputForm0').addEventListener('change', function() {
-    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
-  });
+  photoPickerInit('form');
 
   // Priority par défaut : high
   currentPriority = 'high';
@@ -3735,18 +4011,7 @@ function renderWorkOrderPhase0() {
     <!-- ── PHOTO ── -->
     <div class="form-card">
       <div class="form-card-title">📷 Attachment (optional)</div>
-      <label for="woCameraInputForm" class="btn-camera">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        Take / choose a photo
-      </label>
-      <input type="file" id="woCameraInputForm" accept="image/*" capture="environment">
-      <div class="photo-thumb" id="woPhotoThumb0">
-        <img id="woPhotoImg0" src="" alt="">
-        <button class="remove-btn" onclick="removeWoPhoto()">✕</button>
-      </div>
+      ${photoPickerHtml('wo')}
     </div>
 
     <!-- Toggle destinataire -->
@@ -3770,9 +4035,7 @@ function renderWorkOrderPhase0() {
   document.getElementById('woPdfFileInput').addEventListener('change', function() {
     parseQuotationPDF(this.files[0]);
   });
-  document.getElementById('woCameraInputForm').addEventListener('change', function() {
-    handleWoPhoto(this.files[0]);
-  });
+  photoPickerInit('wo');
 
   woCurrentPriority = 'high';
 }
@@ -3843,29 +4106,6 @@ function updateWoDevisTotal() {
   if (el) el.innerHTML = `<span>Grand Total</span><strong>${total.toFixed(2)} AED</strong>`;
 }
 
-function handleWoPhoto(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      if (w > 1200) { h = h*1200/w; w = 1200; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      woPhotoDataURL = canvas.toDataURL('image/jpeg', 0.75);
-      document.getElementById('woPhotoImg0').src = woPhotoDataURL;
-      document.getElementById('woPhotoThumb0').style.display = 'block';
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-function removeWoPhoto() {
-  woPhotoDataURL = null;
-  document.getElementById('woPhotoThumb0').style.display = 'none';
-}
 
 // ── Parser Quotation PDF ──
 /* ── Reconstruction fiable du tableau du devis à partir des coordonnées x/y de pdf.js ──
@@ -4204,6 +4444,11 @@ function submitWorkOrder() {
     showToast('⚠️ At least one quote item is required', 'error');
     return;
   }
+  if (pickerBusy('wo')) {
+    showToast('⏳ Photos are still uploading — try again in a moment', 'error');
+    return;
+  }
+  const woPhotos = pickerPhotos('wo');
 
   const incidents = getIncidents();
   const manualQuoteNum = document.getElementById('wo_quotenum')?.value?.trim();
@@ -4222,7 +4467,8 @@ function submitWorkOrder() {
     area, building, equipment, ref,
     client, trn, quoteDate, jobDescription,
     priority: woCurrentPriority || 'high',
-    photoBefore: woPhotoDataURL,
+    photosBefore: woPhotos,
+    photoBefore: woPhotos[0] || null,
     assignedTo: woFormAssignee,
     status: 'approved', // Devis déjà accepté → directement en cours
     devis: validDevis,
@@ -4481,31 +4727,6 @@ function prefillForm(data) {
   }
 }
 
-function handlePhoto(file, thumbId, imgId) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      if (w > 1200) { h = h * 1200 / w; w = 1200; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      formPhotoDataURL = canvas.toDataURL('image/jpeg', 0.75);
-      document.getElementById(imgId).src = formPhotoDataURL;
-      document.getElementById(thumbId).style.display = 'block';
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function removePhoto(phase) {
-  formPhotoDataURL = null;
-  document.getElementById('photoThumb' + phase).style.display = 'none';
-}
-
 function submitPhase0() {
   const area = document.getElementById('f_area').value;
   const building = document.getElementById('f_building').value;
@@ -4519,6 +4740,11 @@ function submitPhase0() {
     showToast('⚠️ Building et équipement obligatoires', 'error');
     return;
   }
+  if (pickerBusy('form')) {
+    showToast('⏳ Photos are still uploading — try again in a moment', 'error');
+    return;
+  }
+  const formPhotos = pickerPhotos('form');
 
   const incidents = getIncidents();
   // Priorité : champ saisi manuellement > PDF parsé > ID auto
@@ -4537,7 +4763,8 @@ function submitPhase0() {
     brand, ref, reporter,
     issueNum: issueNumVal,
     priority: currentPriority || 'normal',
-    photoBefore: formPhotoDataURL,
+    photosBefore: formPhotos,
+    photoBefore: formPhotos[0] || null,
     assignedTo: formAssignee,
     status: 'pending',
     devis: [],
@@ -4672,7 +4899,7 @@ function renderDiagnosticForm(inc) {
         <div class="summary-row"><span>Brand</span><strong>${escapeHtml(inc.brand) || '—'}</strong></div>
         ${inc.problem ? `<div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:4px;"><span>Description</span><strong style="font-weight:600;">${escapeHtml(inc.problem)}</strong></div>` : ''}
       </div>
-      ${inc.photoBefore ? `<img src="${inc.photoBefore}" alt="Problem photo" style="max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-top:12px;display:block;margin-left:auto;margin-right:auto;">` : ''}
+      ${photoGalleryHtml(getPhotos(inc, 'Before'), 'max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;border-radius:8px;margin-top:12px;display:block;margin-left:auto;margin-right:auto;')}
     </div>
 
     <div class="form-card">
@@ -4827,27 +5054,7 @@ function renderClosingForm(inc) {
 
     <div class="form-card">
       <div class="form-card-title">📷 Photo — After Repair (Optional)</div>
-      <label for="cameraInputForm" class="btn-camera">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        Take a photo
-      </label>
-      <input type="file" id="cameraInputForm" accept="image/*" capture="environment" style="display:none">
-
-      <label for="fileInputForm" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;text-underline-offset:3px;cursor:pointer;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
-        Add a file
-      </label>
-      <input type="file" id="fileInputForm" accept="image/*" style="display:none">
-
-      <div class="photo-thumb" id="photoThumb0" style="display:none;margin-top:10px;">
-        <img id="photoImg0" src="" alt="">
-        <button class="remove-btn" onclick="removePhoto(0)">✕</button>
-      </div>
+      ${photoPickerHtml('closing')}
     </div>
 
     <div class="form-card">
@@ -4860,21 +5067,24 @@ function renderClosingForm(inc) {
     <button class="btn-back" onclick="goBack()">← Back</button>
   `;
 
-  document.getElementById('cameraInputForm').addEventListener('change', function() {
-    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
-  });
-  document.getElementById('fileInputForm').addEventListener('change', function() {
-    handlePhoto(this.files[0], 'photoThumb0', 'photoImg0');
-  });
+  photoPickerInit('closing');
 }
 
 function submitClosing() {
+  if (pickerBusy('closing')) {
+    showToast('⏳ Photos are still uploading — try again in a moment', 'error');
+    return;
+  }
   const incidents = getIncidents();
   const idx = incidents.findIndex(i => i.id === currentIncidentId);
   if (idx === -1) return;
 
   incidents[idx].status = 'done';
-  if (formPhotoDataURL) incidents[idx].photoAfter = formPhotoDataURL;
+  const afterPhotos = pickerPhotos('closing');
+  if (afterPhotos.length) {
+    incidents[idx].photosAfter = afterPhotos;
+    incidents[idx].photoAfter = afterPhotos[0];
+  }
   incidents[idx].doneAt = new Date().toLocaleDateString('fr-FR');
   const remarksVal = document.getElementById('closingRemarks')?.value.trim() || '';
   if (remarksVal) incidents[idx].remarks = remarksVal;
@@ -5116,18 +5326,7 @@ function handleIncomingTaskAfterSync() {
           <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
           Photo & File
         </div>
-        <label for="m_cameraInput" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#F5F8FF;border:2px dashed #C8D8EC;border-radius:8px;padding:16px;color:#009FC2;font-size:14px;font-weight:600;cursor:pointer;width:100%;">
-          📷 Take a photo
-        </label>
-        <input type="file" id="m_cameraInput" accept="image/*" capture="environment" style="display:none">
-        <label for="m_fileInput" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#009FC2;text-decoration:underline;cursor:pointer;">
-          🔗 or attach a file (PDF, image)
-        </label>
-        <input type="file" id="m_fileInput" accept="image/*,application/pdf" style="display:none">
-        <div id="m_photoPreview" style="display:none;position:relative;border-radius:8px;overflow:hidden;border:1.5px solid #C8D8EC;margin-top:10px;">
-          <img id="m_photoImg" src="" style="max-width:100%;height:auto;max-height:320px;object-fit:contain;background:#F0F4FA;display:block;margin-left:auto;margin-right:auto;">
-          <button onclick="m_removePhoto()" style="position:absolute;top:8px;right:8px;background:rgba(220,38,38,.85);border:none;border-radius:50%;width:30px;height:30px;color:white;font-size:16px;cursor:pointer;">✕</button>
-        </div>
+        ${photoPickerHtml('mgr')}
       </div>
 
       <!-- CARD 4 : COMMENTAIRES -->
@@ -5281,46 +5480,8 @@ function handleIncomingTaskAfterSync() {
     // Notes
     document.getElementById('m_notesField').addEventListener('input', function() { m_state.notes = this.value; });
 
-    // Camera
-    document.getElementById('m_cameraInput').addEventListener('change', function() {
-      const file = this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let w = img.width, h = img.height;
-          if (w > 1200) { h = h*1200/w; w = 1200; }
-          canvas.width=w; canvas.height=h;
-          canvas.getContext('2d').drawImage(img,0,0,w,h);
-          m_state.photoDataURL = canvas.toDataURL('image/jpeg',0.75);
-          document.getElementById('m_photoImg').src = m_state.photoDataURL;
-          document.getElementById('m_photoPreview').style.display = 'block';
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    document.getElementById('m_fileInput').addEventListener('change', function() {
-      const file = this.files[0];
-      if (!file || file.type === 'application/pdf') return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        m_state.photoDataURL = e.target.result;
-        document.getElementById('m_photoImg').src = e.target.result;
-        document.getElementById('m_photoPreview').style.display = 'block';
-      };
-      reader.readAsDataURL(file);
-    });
+    photoPickerInit('mgr', { upload: false });
   }
-
-  window.m_removePhoto = function() {
-    m_state.photoDataURL = null;
-    document.getElementById('m_photoPreview').style.display = 'none';
-    document.getElementById('m_cameraInput').value = '';
-  };
 
   window.m_generatePDF = async function() {
     if (!window.jspdf) { showToast('⚠️ jsPDF non chargé', 'error'); return; }
@@ -5398,7 +5559,9 @@ function handleIncomingTaskAfterSync() {
       doc.text(sn, margin+7, y+5); y+=sn.length*5.5+8;
     }
 
-    if (m_state.photoDataURL) {
+    const mPhotos = pickerLocal('mgr');
+    if (mPhotos.length) {
+      const mPhoto = mPhotos[0];
       await new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
@@ -5413,10 +5576,11 @@ function handleIncomingTaskAfterSync() {
           doc.setTextColor(0,160,200); doc.setFontSize(8); doc.setFont('helvetica','bold');
           doc.text('PHOTO', margin+7, y+6); y+=10;
           const ix=margin+3+((contentW-3)-iw)/2;
-          try { doc.addImage(m_state.photoDataURL,'JPEG',ix,y,iw,ih); } catch(e) {}
+          try { doc.addImage(mPhoto,'JPEG',ix,y,iw,ih); } catch(e) {}
           y+=ih+8; resolve();
         };
-        img.src = m_state.photoDataURL;
+        img.onerror = () => resolve();
+        img.src = mPhoto;
       });
     }
 
@@ -5425,6 +5589,7 @@ function handleIncomingTaskAfterSync() {
     doc.setFont('helvetica','bold'); doc.text('PROLIFIC', margin, H-4.5);
     doc.setFont('helvetica','normal'); doc.text('Rapport généré automatiquement', margin+18, H-4.5);
     doc.text('Page 1/1', W-margin, H-4.5, {align:'right'});
+    appendPhotoAnnex(doc, mPhotos.slice(1).map((d, i) => ({ label: 'Photo ' + (i + 2), data: d })), W, H, margin, { fixPageLabel: true });
 
     const cleanPart = s => (s||'').replace(/\s*\(.*\)\s*/g,'').trim().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'-').substring(0,30);
     const filename = [cleanPart(m_state.building)||'Batiment', cleanPart(m_state.equipment)||'Equipement', cleanPart(m_state.status), cleanPart(m_state.reference)].filter(Boolean).join('-')+'.pdf';
@@ -5466,13 +5631,13 @@ function handleIncomingTaskAfterSync() {
 
   window.m_reset = function() {
     m_state = {area:'',building:'',equipment:'',notes:'',photoDataURL:null,status:'',reference:''};
+    photoPickerInit('mgr', { upload: false });
     ['m_areaDisplay','m_buildingDisplay','m_equipDisplay','m_statusDisplay','m_referenceInput','m_notesField'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value='';
     });
     ['m_areaValue','m_buildingValue','m_equipValue','m_statusValue'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value='';
     });
-    document.getElementById('m_photoPreview').style.display='none';
     showToast('🔄 Réinitialisé');
   };
 
