@@ -5655,6 +5655,12 @@ function handleIncomingTaskAfterSync() {
           <span style="display:block;width:3px;height:16px;background:#00C8F0;border-radius:2px;"></span>
           Zone &amp; Building
         </div>
+        <div id="m_quickBox" style="background:#F0FDFF;border:2px solid #00C8F0;border-radius:10px;padding:12px;margin-bottom:16px;">
+          <label style="display:block;color:#009FC2;font-weight:800;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">🔍 Recherche rapide — bâtiment ou zone</label>
+          <input type="text" id="m_quickSearch" placeholder="Ex : mir, tecom, area 6…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%;background:#fff;border:1.5px solid #C8D8EC;border-radius:8px;padding:12px 14px;font-size:16px;color:#1A1D4E;outline:none;">
+          <div id="m_quickResults" style="margin-top:8px;background:#fff;border:1.5px solid #D8E4F0;border-radius:8px;max-height:300px;overflow-y:auto;display:none;"></div>
+          <div id="m_quickOk" style="margin-top:8px;font-size:12px;font-weight:700;color:#16A34A;display:none;"></div>
+        </div>
         <div style="margin-bottom:16px;">
           <label style="display:block;font-size:12px;font-weight:600;color:#555577;letter-spacing:.5px;margin-bottom:6px;">Zone (Area)</label>
           <div style="position:relative;" id="m_areaWrap">
@@ -5670,7 +5676,7 @@ function handleIncomingTaskAfterSync() {
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#555577;letter-spacing:.5px;margin-bottom:6px;">Building</label>
           <div style="position:relative;" id="m_buildingWrap">
-            <input class="dropdown-input" id="m_buildingDisplay" placeholder="Sélectionnez d'abord une zone…" readonly style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;cursor:pointer;outline:none;">
+            <input class="dropdown-input" id="m_buildingDisplay" placeholder="Rechercher ou sélectionner un bâtiment…" readonly style="width:100%;background:#F5F8FF;border:1.5px solid #C8D8EC;border-radius:8px;padding:11px 40px 11px 14px;color:#1A1D4E;font-size:14px;cursor:pointer;outline:none;">
             <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#00C8F0;pointer-events:none;font-size:12px;" id="m_buildingArrow">▼</span>
             <div class="dropdown-list" id="m_buildingList" style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:#FFFFFF;border:1.5px solid #C8D8EC;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,100,160,.15);">
               <input class="dropdown-search" id="m_buildingSearch" placeholder="🔍 Rechercher ou saisir…" style="width:100%;background:#F5F8FF;border:none;border-bottom:1px solid #D8E4F0;padding:10px 14px;color:#1A1D4E;font-size:13px;outline:none;">
@@ -5780,7 +5786,7 @@ function handleIncomingTaskAfterSync() {
 
   function initMaintenanceData() {
     // Dropdown helper
-    function mDD(displayId, listId, searchId, optionsId, arrowId, valueId, items, allowManual, onSelect) {
+    function mDD(displayId, listId, searchId, optionsId, arrowId, valueId, items, allowManual, onSelect, provider) {
       const display = document.getElementById(displayId);
       const list = document.getElementById(listId);
       const search = document.getElementById(searchId);
@@ -5792,7 +5798,17 @@ function handleIncomingTaskAfterSync() {
       function render(filter='') {
         opts.innerHTML = '';
         const q = filter.toLowerCase();
-        if (Array.isArray(items)) {
+        if (provider) {
+          provider(filter).forEach(r => {
+            const d = document.createElement('div');
+            d.style.cssText = 'padding:10px 14px;font-size:13px;cursor:pointer;color:#333355;border-bottom:1px solid #F0F4FA;';
+            d.innerHTML = ssHighlight(r.text, filter) + (r.hint ? '<div style="font-size:11px;color:#8A9BB0;margin-top:2px;">' + ssHighlight(r.hint, filter) + '</div>' : '');
+            d.onmouseover = () => d.style.background = '#E8F6FB';
+            d.onmouseout = () => d.style.background = '';
+            d.onclick = () => { close(); r.pick(); };
+            opts.appendChild(d);
+          });
+        } else if (Array.isArray(items)) {
           smartFilter(items, filter).forEach(item => {
             {
               const d = document.createElement('div');
@@ -5841,7 +5857,43 @@ function handleIncomingTaskAfterSync() {
         if (!document.getElementById(displayId.replace('Display','Wrap'))?.contains(e.target) && e.target !== display) close();
       });
 
-      return { clear() { display.value=''; hidden.value=''; }, setItems(i) { items=i; } };
+      return { clear() { display.value=''; hidden.value=''; }, setItems(i) { items=i; }, setValue(v) { display.value=v; hidden.value=v; } };
+    }
+
+    // ── Recherche intelligente zone/bâtiment (globale) ──
+    function setArea(label, preBuilding) {
+      m_areaDD.setValue(label);
+      m_state.area = label;
+      const found = M_AREAS.find(a => a.label === label);
+      m_buildingDD.setItems(found ? found.buildings : []);
+      m_buildingDD.clear();
+      m_state.building = '';
+      if (preBuilding) { m_buildingDD.setValue(preBuilding); m_state.building = preBuilding; }
+    }
+    function mAreaRows(filter) {
+      const hasQ = !!ssNorm(filter).trim();
+      const rows = [];
+      M_AREAS.forEach((a, i) => {
+        const sa = smartScore(a.label, filter);
+        const hits = hasQ ? a.buildings.map(b => ({ b, s: smartScore(b, filter) })).filter(x => x.s > 0).sort((x, y) => y.s - x.s) : [];
+        const sc = sa > 0 ? sa : (hits.length ? hits[0].s : 0);
+        if (sc <= 0) return;
+        const pre = (sa <= 0 && hits.length === 1) ? hits[0].b : '';
+        rows.push({ text: a.label, hint: hits.length ? '🏢 ' + hits.slice(0, 3).map(x => x.b).join(' · ') : '', s: sc, i, pick: () => setArea(a.label, pre) });
+      });
+      return rows.sort((x, y) => y.s - x.s || x.i - y.i);
+    }
+    function mBuildingRows(filter) {
+      const hasQ = !!ssNorm(filter).trim();
+      const cur = m_state.area;
+      const rows = [];
+      let n = 0;
+      M_AREAS.forEach(a => a.buildings.forEach(b => {
+        const sc = smartScore(b, filter);
+        if (sc > 0) rows.push({ text: b, hint: '📍 ' + a.label, s: sc + (a.label === cur ? 0.3 : 0), i: n++, area: a.label, pick: () => setArea(a.label, b) });
+      }));
+      if (!hasQ && cur) return rows.filter(r => r.area === cur).map(r => Object.assign(r, { pick: () => { m_buildingDD.setValue(r.text); m_state.building = r.text; } }));
+      return rows.sort((x, y) => y.s - x.s || x.i - y.i);
     }
 
     // Area DD
@@ -5853,11 +5905,12 @@ function handleIncomingTaskAfterSync() {
         m_buildingDD.clear();
         document.getElementById('m_buildingDisplay').placeholder = 'Sélectionner un bâtiment…';
         m_state.building = '';
-      }
+      },
+      mAreaRows
     );
 
     // Building DD
-    const m_buildingDD = mDD('m_buildingDisplay','m_buildingList','m_buildingSearch','m_buildingOptions','m_buildingArrow','m_buildingValue',[], true, val => { m_state.building = val; });
+    const m_buildingDD = mDD('m_buildingDisplay','m_buildingList','m_buildingSearch','m_buildingOptions','m_buildingArrow','m_buildingValue',[], true, val => { m_state.building = val; }, mBuildingRows);
 
     // Equip DD
     mDD('m_equipDisplay','m_equipList','m_equipSearch','m_equipOptions','m_equipArrow','m_equipValue', M_EQUIP, true, val => { m_state.equipment = val; });
@@ -5870,6 +5923,65 @@ function handleIncomingTaskAfterSync() {
     const stDisp = document.getElementById('m_statusDisplay');
     stDisp.removeAttribute('readonly');
     stDisp.addEventListener('input', function() { m_state.status = this.value; });
+
+    // Recherche rapide en haut de la carte
+    (function() {
+      const qi = document.getElementById('m_quickSearch');
+      const qr = document.getElementById('m_quickResults');
+      const qo = document.getElementById('m_quickOk');
+      let rows = [], active = 0;
+      function build(q) {
+        const out = [];
+        let n = 0;
+        M_AREAS.forEach(a => {
+          const sa = smartScore(a.label, q);
+          if (sa > 0) out.push({ zone: true, text: a.label, sub: a.buildings.length + ' bâtiment' + (a.buildings.length > 1 ? 's' : ''), s: sa, i: n++, area: a.label, building: '' });
+          a.buildings.forEach(b => {
+            const sb = smartScore(b, q);
+            const sc = sb > 0 ? 0 : smartScore(b + ' ' + a.label, q);
+            const sco = sb > 0 ? sb + 1 : (sc > 0 ? sc * 0.5 : 0);
+            if (sco > 0) out.push({ zone: false, text: b, sub: '📍 ' + a.label, s: sco, i: n++, area: a.label, building: b });
+          });
+        });
+        return out.sort((x, y) => y.s - x.s || x.i - y.i).slice(0, 40);
+      }
+      function paint() {
+        qr.innerHTML = '';
+        rows.forEach((r, k) => {
+          const d = document.createElement('div');
+          d.style.cssText = 'padding:10px 14px;font-size:13px;cursor:pointer;color:#333355;border-bottom:1px solid #F0F4FA;' + (k === active ? 'background:#E8F6FB;' : '');
+          d.innerHTML = (r.zone ? '<span style="display:inline-block;font-size:9px;font-weight:800;color:#fff;background:#7B61FF;border-radius:4px;padding:1px 5px;margin-right:6px;vertical-align:middle;">ZONE</span>' : '')
+            + ssHighlight(r.text, qi.value) + '<div style="font-size:11px;color:#8A9BB0;margin-top:2px;">' + escapeHtml(r.sub) + '</div>';
+          d.onclick = () => pick(r);
+          qr.appendChild(d);
+        });
+      }
+      function render() {
+        qo.style.display = 'none';
+        if (!ssNorm(qi.value).trim()) { rows = []; qr.style.display = 'none'; return; }
+        rows = build(qi.value);
+        active = 0;
+        qr.style.display = 'block';
+        if (!rows.length) { qr.innerHTML = '<div style="padding:14px;font-size:13px;color:#8A9BB0;text-align:center;">Aucun résultat — essayez moins de lettres</div>'; return; }
+        paint();
+      }
+      function pick(r) {
+        if (!r) return;
+        setArea(r.area, r.building);
+        qi.value = '';
+        qr.style.display = 'none';
+        rows = [];
+        qo.textContent = r.zone ? '✓ Zone remplie : ' + r.area + ' — choisissez le bâtiment' : '✓ Rempli : ' + r.area + ' › ' + r.building;
+        qo.style.display = 'block';
+      }
+      qi.addEventListener('input', render);
+      qi.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' && rows.length) { e.preventDefault(); active = (active + 1) % rows.length; paint(); }
+        else if (e.key === 'ArrowUp' && rows.length) { e.preventDefault(); active = (active - 1 + rows.length) % rows.length; paint(); }
+        else if (e.key === 'Enter') { e.preventDefault(); pick(rows[active]); }
+        else if (e.key === 'Escape') { qi.value = ''; render(); }
+      });
+    })();
 
     // Référence
     document.getElementById('m_referenceInput').addEventListener('input', function() { m_state.reference = this.value; });
