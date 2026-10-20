@@ -1729,24 +1729,32 @@ function smartSelectInit(selectId, opts) {
   function refresh() {
     const o = sel.options[sel.selectedIndex];
     const has = o && sel.value !== '';
-    txt.textContent = has ? o.text : ((sel.options[0] && sel.options[0].text) || '— Select —');
+    txt.textContent = has ? o.text : (opts.areaId ? '— Search or select a building —' : ((sel.options[0] && sel.options[0].text) || '— Select —'));
     btn.classList.toggle('ss-placeholder', !has);
-    btn.disabled = sel.disabled;
-    if (sel.disabled && isOpen) close();
+    btn.disabled = sel.disabled && !opts.areaId;
+    if (btn.disabled && isOpen) close();
   }
 
   function fire(el) { el.dispatchEvent(new Event('change', { bubbles: true })); }
 
   function pick(row) {
     if (!row) return;
-    if (row.type === 'bldg') {
-      sel.value = row.area;
-      fire(sel); // met à jour la liste des bâtiments (onchange d'origine)
-      const bsel = document.getElementById(opts.buildingId);
-      if (bsel) { bsel.value = row.building; fire(bsel); }
+    if (opts.areaId) {
+      // Liste des bâtiments (mode global) : peut changer la zone en même temps
+      const asel = document.getElementById(opts.areaId);
+      if (asel && asel.value !== row.area) {
+        asel.value = row.area;
+        fire(asel); // reconstruit la liste des bâtiments de cette zone
+      }
+      sel.value = row.building;
+      fire(sel);
     } else {
       sel.value = row.value;
       fire(sel);
+      if (row.pre) {
+        const bsel = document.getElementById(opts.buildingId);
+        if (bsel) { bsel.value = row.pre; fire(bsel); }
+      }
     }
     refresh();
     close();
@@ -1754,17 +1762,37 @@ function smartSelectInit(selectId, opts) {
 
   function buildRows(q) {
     const out = [];
-    realOptions().forEach((o, i) => {
-      const s = smartScore(o.text, q);
-      if (s > 0) out.push({ type: 'opt', value: o.value, text: o.text, s, i });
-    });
-    if (opts.buildingId && ssNorm(q).trim()) {
-      let n = 1000;
+    const hasQ = !!ssNorm(q).trim();
+    if (opts.areaId) {
+      // Bâtiments de TOUTES les zones ; ceux de la zone déjà choisie passent en premier.
+      const cur = document.getElementById(opts.areaId).value;
+      let n = 0;
       AREAS_DATA.forEach(a => a.buildings.forEach(b => {
         const s = smartScore(b, q);
-        if (s > 0) out.push({ type: 'bldg', area: a.label, building: b, text: b, s: s + 0.1, i: n++ });
+        if (s > 0) out.push({ type: 'bldg', area: a.label, building: b, text: b, sub: '📍 ' + a.label, s: s + (a.label === cur ? 0.3 : 0), i: n++ });
       }));
+      if (!hasQ && cur) return out.filter(r => r.area === cur);
+      return out.sort((a, b) => b.s - a.s || a.i - b.i);
     }
+    // Liste des zones : trouve une zone par son nom OU par un bâtiment qu'elle contient.
+    realOptions().forEach((o, i) => {
+      const sa = smartScore(o.text, q);
+      const area = opts.buildingId ? AREAS_DATA.find(a => a.label === o.value) : null;
+      let hits = [];
+      if (area && hasQ) {
+        hits = area.buildings
+          .map(b => ({ b, s: smartScore(b, q) }))
+          .filter(x => x.s > 0)
+          .sort((x, y) => y.s - x.s);
+      }
+      const score = sa > 0 ? sa : (hits.length ? hits[0].s : 0);
+      if (score <= 0) return;
+      out.push({
+        type: 'opt', value: o.value, text: o.text, s: score, i,
+        hint: hits.length ? '🏢 ' + hits.slice(0, 3).map(x => x.b).join(' · ') : '',
+        pre: (sa <= 0 && hits.length === 1) ? hits[0].b : ''
+      });
+    });
     return out.sort((a, b) => b.s - a.s || a.i - b.i);
   }
 
@@ -1777,10 +1805,10 @@ function smartSelectInit(selectId, opts) {
       return;
     }
     list.innerHTML = rows.map((r, i) => {
-      const selected = r.type === 'opt' && r.value === sel.value;
+      const selected = (r.type === 'opt' && r.value === sel.value) || (r.type === 'bldg' && r.building === sel.value && sel.value !== '');
       return `<div class="ss-item${i === 0 ? ' ss-active' : ''}${selected ? ' ss-selected' : ''}" data-i="${i}" role="option">`
         + ssHighlight(r.text, q)
-        + (r.type === 'bldg' ? `<small>📍 ${escapeHtml(r.area)}</small>` : '')
+        + (r.type === 'bldg' ? `<small>📍 ${escapeHtml(r.area)}</small>` : (r.hint ? `<small>${ssHighlight(r.hint, q)}</small>` : ''))
         + '</div>';
     }).join('');
   }
@@ -1794,7 +1822,7 @@ function smartSelectInit(selectId, opts) {
   }
 
   function open() {
-    if (sel.disabled) return;
+    if (sel.disabled && !opts.areaId) return;
     isOpen = true;
     wrap.classList.add('ss-open');
     panel.style.display = 'block';
@@ -4257,7 +4285,7 @@ function renderPhase0() {
 
   photoPickerInit('form');
   smartSelectInit('f_area', { buildingId: 'f_building' });
-  smartSelectInit('f_building');
+  smartSelectInit('f_building', { areaId: 'f_area' });
   locationSearchInit('f_area', 'f_building');
 
   // Priority par défaut : high
@@ -4403,7 +4431,7 @@ function renderWorkOrderPhase0() {
   });
   photoPickerInit('wo');
   smartSelectInit('wo_area', { buildingId: 'wo_building' });
-  smartSelectInit('wo_building');
+  smartSelectInit('wo_building', { areaId: 'wo_area' });
   locationSearchInit('wo_area', 'wo_building');
 
   woCurrentPriority = 'high';
